@@ -1,0 +1,43 @@
+name: CI  # trailing comment
+on:
+  push:
+    branches: [main, "release/*"]
+env:
+  GLOBAL: "one"
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        node: [18, 20]
+        include:
+          - node: 20
+            experimental: true
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: pw
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: |
+          npm ci
+          npm run build
+      - name: Test
+        run: npm test
+        env:
+          CI: true
+  lint:
+    runs-on: [self-hosted, linux]
+    steps:
+    - run: make lint
