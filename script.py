@@ -357,6 +357,12 @@ def _section(w, report, fact, title):
 
 
 def _emit(w, claim, indent=""):
+    if "in a directory CI computes" in (claim.note or ""):
+        # Running this in the wrong directory is worse than not running it.
+        w('%swarn %s' % (indent, _sh(
+            "run this yourself, in the directory CI computes: %s" % claim.value)))
+        w('%sinfo %s' % (indent, _sh(claim.cite)))
+        return
     wd = ""
     m = re.search(r", in (\S+)", claim.note or "")
     if m:

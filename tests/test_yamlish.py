@@ -130,6 +130,35 @@ def test_block_scalar_stays_whole():
     check("block scalar: next step", str(doc["steps"][1]["run"]), "echo after")
 
 
+def test_malformed_flow_terminates():
+    """Found by fuzzing: `x: {]` looped forever.
+
+    Neither the key token nor the value token consumed a character, so the
+    index never moved. A repo with one malformed workflow would have hung the
+    tool indefinitely -- worse than crashing, because nothing says why.
+    """
+    import signal
+
+    def _timeout(sig, frame):
+        raise AssertionError("parse did not terminate")
+
+    cases = ["x: {]", "x: [}", "a: {:}", "b: [,,,]", "c: {a: [}", "d: {]}[{",
+             "e: [", "f: {", "g: [{]}", "h: {[}]", "i: {,,}", "j: [[[[[[",
+             "k: }}}}", "l: {'unclosed", 'm: ["unclosed']
+    old = signal.signal(signal.SIGALRM, _timeout)
+    try:
+        for src in cases:
+            signal.setitimer(signal.ITIMER_REAL, 5.0)
+            try:
+                yamlish.load(src)
+            finally:
+                signal.setitimer(signal.ITIMER_REAL, 0)
+    finally:
+        signal.signal(signal.SIGALRM, old)
+    check("malformed flow still yields a mapping",
+          isinstance(yamlish.load("x: {]"), dict), True)
+
+
 def test_on_is_not_true():
     """YAML 1.1 turns `on:` into the boolean True. A workflow means "on"."""
     doc = yamlish.load("on: push\njobs: {}\n")

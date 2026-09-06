@@ -471,6 +471,8 @@ def ci(root, wf, env_ok=True):
             where = "job %s" % job["id"]
             if blk["wd"]:
                 where += ", in %s" % blk["wd"]
+            elif blk.get("wd_unknown"):
+                where += ", in a directory CI computes"
             for cmd in _script_commands(blk["script"]):
                 kind = classify(cmd)
                 if kind:

@@ -326,18 +326,24 @@ def _flow(s, i, ln):
         seq.line = ln
         i += 1
         while i < len(s):
+            start = i
             while i < len(s) and s[i] in " ,":
                 i += 1
             if i < len(s) and s[i] == "]":
                 return seq, i + 1
             v, i = _flow(s, i, ln)
             seq.append(v)
+            if i == start:
+                # Malformed flow (`[}`): neither branch consumed a character.
+                # Step over it rather than spinning on the same index forever.
+                i += 1
         return seq, i
     if s[i] == "{":
         m = M()
         m.line = ln
         i += 1
         while i < len(s):
+            start = i
             while i < len(s) and s[i] in " ,":
                 i += 1
             if i < len(s) and s[i] == "}":
@@ -348,6 +354,10 @@ def _flow(s, i, ln):
             v, i = _flow(s, i, ln)
             m[unquote(k)] = v
             m.klines[unquote(k)] = ln
+            if i == start:
+                # `{]` -- key and value both matched the empty string, so the
+                # index never moved. Guarantee progress on malformed input.
+                i += 1
         return m, i
     return _flow_token(s, i, ln, ",}]")
 

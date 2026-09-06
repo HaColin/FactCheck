@@ -6,6 +6,7 @@ the 60 req/hour unauthenticated budget.
 """
 import os
 import re
+import shutil
 import subprocess
 
 CATEGORIES = [
@@ -73,10 +74,33 @@ def parse_repo_url(url):
         "https://github.com/OWNER/NAME, or the OWNER/NAME shorthand." % url)
 
 
-def clone(clone_url, dest):
-    """Shallow, blobless clone. Blobs arrive on demand when we read a file."""
-    if os.path.isdir(os.path.join(dest, ".git")):
-        return dest
+def usable_clone(dest):
+    """Is this cached clone actually readable, or a half-finished one?
+
+    Asks git rather than looking for a .git directory: a worktree's .git is a
+    file, and an interrupted clone leaves a .git directory with no HEAD.
+    """
+    if not os.path.isdir(dest):
+        return False
+    r = subprocess.run(["git", "-C", dest, "rev-parse", "--verify", "HEAD"],
+                       capture_output=True, text=True)
+    return r.returncode == 0
+
+
+def clone(clone_url, dest, allow_reset=True):
+    """Shallow, blobless clone. Blobs arrive on demand when we read a file.
+
+    A clone interrupted partway leaves a directory with a .git in it and no
+    HEAD. Reusing that fails every later run with the same error, so a cache
+    entry that cannot be read is discarded and fetched again rather than
+    poisoning the cache permanently.
+    """
+    if os.path.isdir(dest) and os.listdir(dest):
+        if usable_clone(dest):
+            return dest
+        if not allow_reset:
+            raise RuntimeError("unusable clone at %s" % dest)
+        shutil.rmtree(dest, ignore_errors=True)
     subprocess.run(
         ["git", "clone", "--depth", "1", "--filter=blob:none", "--quiet",
          clone_url, dest],

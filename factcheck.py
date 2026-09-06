@@ -7,6 +7,7 @@ Phases A, B and C. Zero GitHub API calls.
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -73,10 +74,13 @@ def main():
         collect.clone(url, dest)
     except subprocess.CalledProcessError as exc:
         detail = (exc.stderr or "").strip().split("\n")[-1]
-        sys.stderr.write(
-            "cannot clone %s\n  %s\n"
-            "  The repository must exist and be public; FACTCHECK uses no "
-            "credentials.\n" % (url, detail or "git clone failed"))
+        hint = ""
+        if re.search(r"not found|does not exist|Authentication|denied|could not read",
+                     detail, re.I):
+            hint = ("  The repository must exist and be public; FACTCHECK uses "
+                    "no credentials.\n")
+        sys.stderr.write("cannot clone %s\n  %s\n%s"
+                         % (url, detail or "git clone failed", hint))
         return 1
     except subprocess.TimeoutExpired:
         sys.stderr.write("timed out cloning %s\n" % url)
@@ -196,9 +200,8 @@ def main():
                 print()
                 print(text)
             else:
-                _ensure_dir(args.out)
-                with open(args.out, "w", encoding="utf-8") as fh:
-                    fh.write(text)
+                if not write_out(args.out, text, "document"):
+                    return 1
                 print("\n  %swrote %s%s  %s(%d lines, %d citations)%s"
                       % (G, args.out, R, D, text.count(chr(10)) + 1,
                          text.count("](%s/blob/" % meta["url"]), R))
@@ -208,10 +211,12 @@ def main():
                 print()
                 print(sh)
             else:
-                _ensure_dir(args.script)
-                with open(args.script, "w", encoding="utf-8") as fh:
-                    fh.write(sh)
-                os.chmod(args.script, 0o755)
+                if not write_out(args.script, sh, "script"):
+                    return 1
+                try:
+                    os.chmod(args.script, 0o755)
+                except OSError:
+                    pass          # not fatal: the script is still readable
                 print("  %swrote %s%s  %s(%d lines, %d commands)%s"
                       % (G, args.script, R, D, sh.count(chr(10)) + 1,
                          sh.count("\n step ") + sh.count("\nstep ")
@@ -246,6 +251,25 @@ def _ensure_dir(path):
     parent = os.path.dirname(os.path.abspath(path))
     if parent and not os.path.isdir(parent):
         os.makedirs(parent, exist_ok=True)
+
+
+def write_out(path, text, what):
+    """Write one artifact, or explain why it could not be written.
+
+    The output directory comes from whoever ran this, so it can be read-only,
+    or a path whose parent is a file. Neither deserves a stack trace.
+    """
+    try:
+        _ensure_dir(path)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+    except OSError as exc:
+        sys.stderr.write(
+            "cannot write the %s to %s\n  %s\n"
+            "  Choose a writable directory (--out / --script, or out_dir).\n"
+            % (what, path, exc.strerror or exc))
+        return False
+    return True
 
 
 def summary(meta, inv, report, args, gotchas=None):

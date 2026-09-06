@@ -23,16 +23,21 @@ def grep_run_lines(path):
         if not m:
             continue
         ind = len(m.group(1))
-        parent = ""
+        # Walk the whole ancestor chain, not just the nearest parent: a `run:`
+        # under strategy.matrix.include is matrix *data* consumed later as
+        # ${{ matrix.run }}, not a step script. nodejs/node has 32 of them.
+        ancestors, depth = [], ind
         for j in range(i - 1, -1, -1):
             prev = lines[j]
             if not prev.strip() or prev.strip().startswith("#"):
                 continue
             pind = len(prev) - len(prev.lstrip(" "))
-            if pind < ind:
-                parent = prev.strip()
+            if pind < depth:
+                ancestors.append(prev.strip().lstrip("- ").rstrip())
+                depth = pind
+            if depth == 0:
                 break
-        if parent in ("defaults:", "with:"):
+        if {"defaults:", "with:", "matrix:", "include:", "exclude:"} & set(ancestors):
             continue
         out.append(i + 1)
     return out

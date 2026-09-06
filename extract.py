@@ -159,24 +159,42 @@ def iter_steps(steps):
                     yield nested
 
 
+WORKSPACE = re.compile(r"\$\{\{\s*github\.workspace\s*\}\}/?")
+
+
+def normalise_wd(wd):
+    """-> (directory, unknown).
+
+    `${{ github.workspace }}` is the checkout root, so it resolves to the
+    repo itself. Any other expression is computed by the runner and cannot be
+    known here; saying so beats guessing, because a command run in the wrong
+    directory is worse than one not run at all.
+    """
+    wd = WORKSPACE.sub("", str(wd or "")).strip()
+    if "${{" in wd:
+        return "", True
+    return wd, False
+
+
 def _defaults(node):
     """jobs.*.defaults.run / defaults.run -- where and how steps actually run."""
-    out = {"wd": "", "shell": ""}
+    out = {"wd": "", "shell": "", "wd_unknown": False}
     d = node.get("defaults") if isinstance(node, dict) else None
     if isinstance(d, dict):
         run = d.get("run")
         if isinstance(run, dict):
-            out["wd"] = str(run.get("working-directory", ""))
+            out["wd"], out["wd_unknown"] = normalise_wd(run.get("working-directory", ""))
             out["shell"] = str(run.get("shell", ""))
     return out
 
 
 def extract_job(job_id, job, matrix, wf_defaults=None):
-    wf_defaults = wf_defaults or {"wd": "", "shell": ""}
+    wf_defaults = wf_defaults or {"wd": "", "shell": "", "wd_unknown": False}
     job_defaults = _defaults(job)
     j = {
         "id": job_id,
-        "defaults": {k: job_defaults[k] or wf_defaults[k] for k in ("wd", "shell")},
+        "defaults": {k: job_defaults[k] or wf_defaults[k]
+                     for k in ("wd", "shell", "wd_unknown")},
         "name": str(job.get("name", job_id)),
         "line": getattr(job, "line", 0),
         "runs_on": [],
@@ -279,8 +297,9 @@ def extract_job(job_id, job, matrix, wf_defaults=None):
                 blk["script"] = resolve_in(blk["script"], matrix)
                 blk["step"] = str(step.get("name", ""))
                 blk["shell"] = str(step.get("shell", "")) or j["defaults"]["shell"]
-                blk["wd"] = (str(step.get("working-directory", ""))
-                             or j["defaults"]["wd"])
+                _wd, _unknown = normalise_wd(step.get("working-directory", ""))
+                blk["wd"] = _wd or j["defaults"]["wd"]
+                blk["wd_unknown"] = _unknown or j["defaults"]["wd_unknown"]
                 blk["if"] = str(step.get("if", ""))
                 j["blocks"].append(blk)
             for cmd, ln in run_commands(step):
@@ -288,7 +307,7 @@ def extract_job(job_id, job, matrix, wf_defaults=None):
                     "cmd": resolve(cmd, matrix), "line": ln,
                     "step": str(step.get("name", "")),
                     "shell": str(step.get("shell", "")),
-                    "wd": (str(step.get("working-directory", ""))
+                    "wd": (normalise_wd(step.get("working-directory", ""))[0]
                            or j["defaults"]["wd"]),
                     "if": str(step.get("if", "")),
                 })
