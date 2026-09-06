@@ -7,7 +7,8 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SUITES = ["test_yamlish.py", "test_precedence.py", "test_render.py"]
+SUITES = ["test_yamlish.py", "test_precedence.py", "test_render.py",
+          "test_script.py"]
 
 failed = 0
 for name in SUITES:

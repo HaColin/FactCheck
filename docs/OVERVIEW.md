@@ -22,7 +22,7 @@ twice.
 | B | Extract from CI — runs-on, setup-\*, run, services, env, cache | done |
 | C | Reconcile — source-precedence table, as code | done |
 | D | Emit `FACTCHECK.md` with provenance | done |
-| E | Emit executable `factcheck.sh` | next |
+| E | Emit executable `factcheck.sh` | done |
 | F | Issue mining (the only step that spends API rate limit) | todo |
 
 Phases A–C make **zero GitHub API calls** — shallow clone only, so nothing counts
@@ -33,7 +33,7 @@ and it is optional: a rate-limit failure there must never fail the run.
 
 ```sh
 python3 factcheck.py https://github.com/netbox-community/netbox --quiet-ci
-python3 factcheck.py https://github.com/discourse/discourse -o FACTCHECK.md
+python3 factcheck.py https://github.com/discourse/discourse -o FACTCHECK.md -s factcheck.sh
 python3 factcheck.py --table          # just the precedence table
 ```
 
@@ -103,8 +103,9 @@ Lockfile → install command is a pure mapping, no inference: `package-lock.json
 | `sources.py` | Phase C — every file, restated as claims |
 | `precedence.py` | Phase C — the table and the resolution engine |
 | `render.py` | Phase D — emit `FACTCHECK.md` |
+| `script.py` | Phase E — emit `factcheck.sh` |
 | `factcheck.py` | CLI |
-| `examples/` | Documents generated for six real repos |
+| `examples/` | Documents and scripts generated for six real repos |
 | `sweep.py` | Parser validation harness (needs network) |
 | `tests/` | Offline regression tests |
 
@@ -178,8 +179,48 @@ database service the README never mentions (netbox), a native build (llama.cpp),
 a monorepo (cal.com), and a README provably stale against its own CI
 (discourse — the docs workflow pins Ruby 3.3 against a `~> 3.4` Gemfile).
 
-## Notes for phase E
+## The script
 
+`-s` writes `factcheck.sh`: the install and run sequence, derived from CI steps,
+with every line citing where it came from.
+
+CI runs on a disposable machine, as a user who can install anything, with its
+services already provisioned. A developer's laptop is none of those things, so
+the commands are not replayed blindly. Four fixed rules decide what survives:
+
+| Rule | Why |
+|---|---|
+| Anything not literal (`${{ … }}`) is dropped | Guessing at an unexpanded expression is how a script does something nobody asked for |
+| Anything that publishes is dropped | `npm publish`, `docker push`, `gh release` change the world outside this machine |
+| Anything needing root is printed, not run | A generated script does not get to `sudo`, and a global `npm i -g` writes outside the project |
+| `rm -rf` and friends are printed, not run | A human should be in the loop |
+
+What it does instead of guessing:
+
+- **Checks before it acts.** Reports the runtime versions CI pins against what is
+  actually installed, and probes each service's port.
+- **Turns `services:` into something runnable.** A CI service block becomes the
+  exact `docker run` that satisfies it — `--with-services` starts them, otherwise
+  the command is printed for the reader to run.
+- **Carries CI's environment across.** `mix deps.get --only $MIX_ENV` is not a
+  runnable command until `MIX_ENV` exists, so resolved `env:` blocks are exported
+  with their citations. Where two jobs set the same variable differently, the
+  document shows both and the script takes the highest-authority one.
+- **Says what it could not bring.** Variables referenced by commands but never set
+  by CI are listed up front rather than failing halfway through.
+
+One limit, stated in the generated header: commands are taken individually from CI
+steps, so an `if` wrapped around one in the original workflow is not reproduced.
+
+`--dry-run` prints every command and runs none of them. `tests/test_script.py`
+generates a script, asks `bash -n` whether it is valid, and executes it under
+`--dry-run` — a generator that emits broken shell should fail its own tests.
+
+## Notes for phase F
+
+- Issue mining is the only step that spends API rate limit. `gh auth token` is
+  rung one of the ladder; unauthenticated with a hard query cap is rung two; a
+  403 must still emit the document, with the gotchas section marked skipped.
 - Images are often unpinned — netbox's CI says `image: postgres` with no tag.
   "PostgreSQL, version unpinned in CI" is honest; inventing `15` is not.
 - Runtime facts can be multi-valued (`3.12 | 3.13 | 3.14`). The document shows

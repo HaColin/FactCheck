@@ -14,6 +14,7 @@ import collect
 import extract
 import precedence
 import render
+import script as script_mod
 import sources
 
 B = "\033[1m"; D = "\033[2m"; G = "\033[32m"; Y = "\033[33m"; C = "\033[36m"; R = "\033[0m"
@@ -38,6 +39,8 @@ def main():
                     help="skip the phase B per-job dump")
     ap.add_argument("-o", "--out", nargs="?", const="FACTCHECK.md",
                     help="write the document (default FACTCHECK.md; - for stdout)")
+    ap.add_argument("-s", "--script", nargs="?", const="factcheck.sh",
+                    help="write the setup script (default factcheck.sh)")
     args = ap.parse_args()
     if args.table:
         print(precedence.table_as_text())
@@ -136,23 +139,37 @@ def main():
 
     report = phase_c(dest, inv, wfs)
 
-    if args.out:
+    if args.out or args.script:
         auth = [wf for wf in wfs if wf.get("authoritative")]
         meta = {"owner": owner, "name": name,
                 "url": "https://github.com/%s/%s" % (owner, name),
                 "sha": collect.head_sha(dest),
                 "branch": collect.default_branch(dest),
                 "primary": auth[0] if auth else None}
-        text = render.render(meta, inv, wfs, report)
-        if args.out == "-":
-            print()
-            print(text)
-        else:
-            with open(args.out, "w", encoding="utf-8") as fh:
-                fh.write(text)
-            print("\n  %swrote %s%s  %s(%d lines, %d citations)%s"
-                  % (G, args.out, R, D, text.count(chr(10)) + 1,
-                     text.count("](%s/blob/" % meta["url"]), R))
+        if args.out:
+            text = render.render(meta, inv, wfs, report)
+            if args.out == "-":
+                print()
+                print(text)
+            else:
+                with open(args.out, "w", encoding="utf-8") as fh:
+                    fh.write(text)
+                print("\n  %swrote %s%s  %s(%d lines, %d citations)%s"
+                      % (G, args.out, R, D, text.count(chr(10)) + 1,
+                         text.count("](%s/blob/" % meta["url"]), R))
+        if args.script:
+            sh = script_mod.render_script(meta, report)
+            if args.script == "-":
+                print()
+                print(sh)
+            else:
+                with open(args.script, "w", encoding="utf-8") as fh:
+                    fh.write(sh)
+                os.chmod(args.script, 0o755)
+                print("  %swrote %s%s  %s(%d lines, %d commands)%s"
+                      % (G, args.script, R, D, sh.count(chr(10)) + 1,
+                         sh.count("\n step ") + sh.count("\nstep ")
+                         + sh.count("step_in "), R))
     return 0
 
 
