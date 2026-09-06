@@ -241,6 +241,10 @@ def manifests(root, inv):
         except ValueError:
             pkg = {}
         for tool, val in (pkg.get("engines") or {}).items():
+            # `"npm": "please-use-pnpm"` is a guard, not a version. A value with
+            # no digit in it says nothing about what runtime to install.
+            if not re.search(r"\d", str(val)):
+                continue
             out.append(Claim("runtime", tool.lower(), _norm_version(val),
                              "manifest-engines", "package.json",
                              _find_line(text, r'"%s"' % re.escape(tool)),

@@ -5,7 +5,9 @@
 Phases A, B and C. Zero GitHub API calls.
 """
 import argparse
+import json
 import os
+import subprocess
 import sys
 import time
 
@@ -41,6 +43,8 @@ def main():
                     help="write the document (default FACTCHECK.md; - for stdout)")
     ap.add_argument("-s", "--script", nargs="?", const="factcheck.sh",
                     help="write the setup script (default factcheck.sh)")
+    ap.add_argument("--json-summary", action="store_true",
+                    help="print a machine-readable summary as the last stdout line")
     args = ap.parse_args()
     if args.table:
         print(precedence.table_as_text())
@@ -54,7 +58,18 @@ def main():
 
     t0 = time.time()
     fresh = not os.path.isdir(os.path.join(dest, ".git"))
-    collect.clone(url, dest)
+    try:
+        collect.clone(url, dest)
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or "").strip().split("\n")[-1]
+        sys.stderr.write(
+            "cannot clone %s\n  %s\n"
+            "  The repository must exist and be public; FACTCHECK uses no "
+            "credentials.\n" % (url, detail or "git clone failed"))
+        return 1
+    except subprocess.TimeoutExpired:
+        sys.stderr.write("timed out cloning %s\n" % url)
+        return 1
     clone_s = time.time() - t0
 
     print("%s%s/%s%s  @ %s %s(%s, clone %s %.1fs)%s" % (
@@ -76,12 +91,16 @@ def main():
     # ---- phase B -----------------------------------------------------
     hdr("B. Extracted from CI  (0 API calls)")
     paths = extract.workflow_paths(dest)
-    if not paths:
-        print("  no .github/workflows -- other CI: %s" % (inv["ci"] or "none"))
-        return 0
     wfs = [extract.extract_workflow(dest, p) for p in paths]
     wfs.sort(key=lambda w: -w["rank"])
-    print("  %d workflow file(s), ranked by authority over 'what runs on merge':\n" % len(wfs))
+    if not paths:
+        # No workflows is a finding, not an early exit: the document still gets
+        # written, and it says plainly that nothing here is verified.
+        print("  %sno .github/workflows%s -- other CI files: %s"
+              % (Y, R, ", ".join(inv["ci"]) or "none"))
+    if wfs:
+        print("  %d workflow file(s), ranked by authority over "
+              "'what runs on merge':\n" % len(wfs))
     for wf in wfs:
         flag = "%sPRIMARY%s" % (G, R) if wf is wfs[0] else "%srank %d%s" % (D, wf["rank"], R)
         print("  %-42s %-28s %s" % (
@@ -152,6 +171,7 @@ def main():
                 print()
                 print(text)
             else:
+                _ensure_dir(args.out)
                 with open(args.out, "w", encoding="utf-8") as fh:
                     fh.write(text)
                 print("\n  %swrote %s%s  %s(%d lines, %d citations)%s"
@@ -163,6 +183,7 @@ def main():
                 print()
                 print(sh)
             else:
+                _ensure_dir(args.script)
                 with open(args.script, "w", encoding="utf-8") as fh:
                     fh.write(sh)
                 os.chmod(args.script, 0o755)
@@ -170,7 +191,52 @@ def main():
                       % (G, args.script, R, D, sh.count(chr(10)) + 1,
                          sh.count("\n step ") + sh.count("\nstep ")
                          + sh.count("step_in "), R))
+        if args.json_summary:
+            print(json.dumps(summary(meta, inv, report, args), sort_keys=True))
     return 0
+
+
+def _ensure_dir(path):
+    parent = os.path.dirname(os.path.abspath(path))
+    if parent and not os.path.isdir(parent):
+        os.makedirs(parent, exist_ok=True)
+
+
+def summary(meta, inv, report, args):
+    """One JSON object, printed last, for a machine reading this run.
+
+    Emitted so a caller does not have to regex the human output above --
+    the numbers here are the same ones the document reports.
+    """
+    def kv(fact):
+        return {r.key: r.value for r in report.by_fact(fact) if r.winner}
+
+    primary = meta.get("primary") or {}
+    return {
+        "repo": "%s/%s" % (meta["owner"], meta["name"]),
+        "url": meta["url"],
+        "commit": meta["sha"],
+        "branch": meta["branch"],
+        "primary_workflow": primary.get("path"),
+        "primary_triggers": list(primary.get("triggers", [])),
+        "has_ci": bool(primary),
+        "runtime": kv("runtime"),
+        "services": kv("services"),
+        "counts": {
+            "conflicts": len(report.conflicts),
+            "undocumented": len([r for r in report.undocumented if r.winner]),
+            "env_vars": len([r for r in report.by_fact("env") if r.winner]),
+            "commands": sum(len(r.members) for f in
+                            ("install", "setup", "build", "test", "lint")
+                            for r in report.by_fact(f) if r.winner),
+        },
+        "artifacts": {
+            "document": (os.path.abspath(args.out)
+                         if args.out and args.out != "-" else None),
+            "script": (os.path.abspath(args.script)
+                       if args.script and args.script != "-" else None),
+        },
+    }
 
 
 def cite(claim):
