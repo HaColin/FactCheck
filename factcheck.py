@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import collect
 import extract
 import precedence
+import render
 import sources
 
 B = "\033[1m"; D = "\033[2m"; G = "\033[32m"; Y = "\033[33m"; C = "\033[36m"; R = "\033[0m"
@@ -35,6 +36,8 @@ def main():
                     help="print the source-precedence table and exit")
     ap.add_argument("--quiet-ci", action="store_true",
                     help="skip the phase B per-job dump")
+    ap.add_argument("-o", "--out", nargs="?", const="FACTCHECK.md",
+                    help="write the document (default FACTCHECK.md; - for stdout)")
     args = ap.parse_args()
     if args.table:
         print(precedence.table_as_text())
@@ -131,7 +134,25 @@ def main():
                 print("      run          %s+%d more (--all-runs)%s"
                       % (D, len(j["runs"]) - len(runs), R))
 
-    phase_c(dest, inv, wfs)
+    report = phase_c(dest, inv, wfs)
+
+    if args.out:
+        auth = [wf for wf in wfs if wf.get("authoritative")]
+        meta = {"owner": owner, "name": name,
+                "url": "https://github.com/%s/%s" % (owner, name),
+                "sha": collect.head_sha(dest),
+                "branch": collect.default_branch(dest),
+                "primary": auth[0] if auth else None}
+        text = render.render(meta, inv, wfs, report)
+        if args.out == "-":
+            print()
+            print(text)
+        else:
+            with open(args.out, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            print("\n  %swrote %s%s  %s(%d lines, %d citations)%s"
+                  % (G, args.out, R, D, text.count(chr(10)) + 1,
+                     text.count("](%s/blob/" % meta["url"]), R))
     return 0
 
 
@@ -145,6 +166,10 @@ def phase_c(root, inv, wfs):
     for p in inv.get("prose", []):
         prose += collect.read(root, p) or ""
     wf_rank = {wf["path"]: wf["rank"] for wf in wfs}
+    for wf in wfs:
+        wf["authoritative"] = False
+    for wf in sources.authoritative(wfs):
+        wf["authoritative"] = True
     claims = sources.gather(root, inv, wfs)
     report = precedence.reconcile(claims, wf_rank, prose)
     print("  %d claims from %d sources, ranked by a fixed table (--table)\n"

@@ -21,8 +21,8 @@ twice.
 | A | Collect — shallow clone, inventory setup-bearing files | done |
 | B | Extract from CI — runs-on, setup-\*, run, services, env, cache | done |
 | C | Reconcile — source-precedence table, as code | done |
-| D | Emit `FACTCHECK.md` with provenance | next |
-| E | Emit executable `factcheck.sh` | todo |
+| D | Emit `FACTCHECK.md` with provenance | done |
+| E | Emit executable `factcheck.sh` | next |
 | F | Issue mining (the only step that spends API rate limit) | todo |
 
 Phases A–C make **zero GitHub API calls** — shallow clone only, so nothing counts
@@ -33,6 +33,7 @@ and it is optional: a rate-limit failure there must never fail the run.
 
 ```sh
 python3 factcheck.py https://github.com/netbox-community/netbox --quiet-ci
+python3 factcheck.py https://github.com/discourse/discourse -o FACTCHECK.md
 python3 factcheck.py --table          # just the precedence table
 ```
 
@@ -101,7 +102,9 @@ Lockfile → install command is a pure mapping, no inference: `package-lock.json
 | `claims.py` | The claim model; provenance enforced in the constructor |
 | `sources.py` | Phase C — every file, restated as claims |
 | `precedence.py` | Phase C — the table and the resolution engine |
+| `render.py` | Phase D — emit `FACTCHECK.md` |
 | `factcheck.py` | CLI |
+| `examples/` | Documents generated for six real repos |
 | `sweep.py` | Parser validation harness (needs network) |
 | `tests/` | Offline regression tests |
 
@@ -127,8 +130,7 @@ action input) must surface as exactly one extracted block, and every child key o
 `services:` as exactly one service.
 
 ```sh
-python3 tests/test_yamlish.py      # offline
-python3 tests/test_precedence.py   # offline
+python3 tests/all.py     # every offline suite: parser, precedence, document
 python3 sweep.py PostHog/posthog discourse/discourse ggml-org/llama.cpp
 ```
 
@@ -156,11 +158,32 @@ rules above being missing, and every one of them is now a test case. A tool that
 invents a conflict in a repo the reader knows personally is worse than one that
 finds nothing.
 
-## Notes for phase D
+## The document
 
-- `defaults.run.working-directory` and `shell` are not captured yet; both are
-  needed before `factcheck.sh` can be faithful.
+`-o` writes `FACTCHECK.md`. Every factual line links into the repo at the exact
+commit that was read, so a reader can check any claim in one click:
+
+```markdown
+| postgres | `postgres:15` | job test, ports 5432:5432 | [`ci.yml:31`](…/blob/<sha>/…#L31) |
+```
+
+The output is deterministic — no timestamps, no wall-clock, no ordering that
+depends on a dict. The same commit renders byte-identical output, which is what
+makes the method worth capturing rather than re-deriving. `tests/test_render.py`
+asserts it, along with the rule that no factual line may appear without a
+citation, and that an unpinned `image: postgres` never becomes `postgres:15`.
+
+Six examples are checked in under `examples/`, chosen to cover the range: a
+database service the README never mentions (netbox), a native build (llama.cpp),
+a monorepo (cal.com), and a README provably stale against its own CI
+(discourse — the docs workflow pins Ruby 3.3 against a `~> 3.4` Gemfile).
+
+## Notes for phase E
+
 - Images are often unpinned — netbox's CI says `image: postgres` with no tag.
   "PostgreSQL, version unpinned in CI" is honest; inventing `15` is not.
-- Runtime facts can be multi-valued (`3.12 | 3.13 | 3.14`). The document should
-  show the range; the script has to pick one deterministically.
+- Runtime facts can be multi-valued (`3.12 | 3.13 | 3.14`). The document shows
+  the range; the script has to pick one deterministically.
+- Which workflow counts as "primary" is a heuristic, and on a repo with fifty
+  workflows and no baseline CI it is a judgement call. The document names the
+  workflow it read and cites every line, so the reader can see what was chosen.

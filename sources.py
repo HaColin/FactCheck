@@ -407,7 +407,7 @@ def readme(root, inv):
                 if m:
                     ver = (m.group(1) or "") + m.group(2) + (m.group(3) or "")
                     out.append(Claim("runtime", tool, ver, "readme", path,
-                                     i + 1, note=line[:90]))
+                                     i + 1, note=" ".join(clean.split())[:120]))
         break
     return out
 
@@ -450,12 +450,15 @@ def ci(root, wf, env_ok=True):
                              resolved="${{" not in value,
                              note="job %s" % job["id"]))
         for blk in job["blocks"]:
+            where = "job %s" % job["id"]
+            if blk["wd"]:
+                where += ", in %s" % blk["wd"]
             for cmd in _script_commands(blk["script"]):
                 kind = classify(cmd)
                 if kind:
                     out.append(Claim(kind, kind, cmd, "ci-run", path,
                                      blk["line"], resolved="${{" not in cmd,
-                                     note="job %s" % job["id"]))
+                                     note=where))
     return out
 
 
@@ -488,7 +491,9 @@ def authoritative(wfs):
     a schedule or a manual dispatch does not qualify, so it is not evidence.
     """
     auth = [wf for wf in wfs if set(wf["triggers"]) & extract.MERGE_TRIGGERS]
-    return sorted(auth, key=lambda w: (-w["rank"], w["path"]))
+    # Ties go to the simpler name: `ci.yml` over `ci-agent-proxy.yml`.
+    return sorted(auth, key=lambda w: (-w["rank"], len(os.path.basename(w["path"])),
+                                       w["path"]))
 
 
 def gather(root, inv, wfs):

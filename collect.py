@@ -66,7 +66,7 @@ def default_branch(root):
 def head_sha(root):
     r = subprocess.run(["git", "-C", root, "rev-parse", "HEAD"],
                        capture_output=True, text=True)
-    return r.stdout.strip()[:12]
+    return r.stdout.strip()
 
 
 def tracked_files(root):

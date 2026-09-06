@@ -159,9 +159,24 @@ def iter_steps(steps):
                     yield nested
 
 
-def extract_job(job_id, job, matrix):
+def _defaults(node):
+    """jobs.*.defaults.run / defaults.run -- where and how steps actually run."""
+    out = {"wd": "", "shell": ""}
+    d = node.get("defaults") if isinstance(node, dict) else None
+    if isinstance(d, dict):
+        run = d.get("run")
+        if isinstance(run, dict):
+            out["wd"] = str(run.get("working-directory", ""))
+            out["shell"] = str(run.get("shell", ""))
+    return out
+
+
+def extract_job(job_id, job, matrix, wf_defaults=None):
+    wf_defaults = wf_defaults or {"wd": "", "shell": ""}
+    job_defaults = _defaults(job)
     j = {
         "id": job_id,
+        "defaults": {k: job_defaults[k] or wf_defaults[k] for k in ("wd", "shell")},
         "name": str(job.get("name", job_id)),
         "line": getattr(job, "line", 0),
         "runs_on": [],
@@ -263,8 +278,9 @@ def extract_job(job_id, job, matrix):
             if blk:
                 blk["script"] = resolve_in(blk["script"], matrix)
                 blk["step"] = str(step.get("name", ""))
-                blk["shell"] = str(step.get("shell", ""))
-                blk["wd"] = str(step.get("working-directory", ""))
+                blk["shell"] = str(step.get("shell", "")) or j["defaults"]["shell"]
+                blk["wd"] = (str(step.get("working-directory", ""))
+                             or j["defaults"]["wd"])
                 blk["if"] = str(step.get("if", ""))
                 j["blocks"].append(blk)
             for cmd, ln in run_commands(step):
@@ -272,7 +288,8 @@ def extract_job(job_id, job, matrix):
                     "cmd": resolve(cmd, matrix), "line": ln,
                     "step": str(step.get("name", "")),
                     "shell": str(step.get("shell", "")),
-                    "wd": str(step.get("working-directory", "")),
+                    "wd": (str(step.get("working-directory", ""))
+                           or j["defaults"]["wd"]),
                     "if": str(step.get("if", "")),
                 })
             senv = step.get("env")
@@ -304,11 +321,13 @@ def extract_workflow(root, relpath):
     genv = doc.get("env")
     if isinstance(genv, dict):
         wf["env"] = [(str(k), str(v), genv.kline(k)) for k, v in genv.items()]
+    wf_defaults = _defaults(doc)
     jobs = doc.get("jobs")
     if isinstance(jobs, dict):
         for jid, job in jobs.items():
             if isinstance(job, dict):
-                wf["jobs"].append(extract_job(str(jid), job, matrix_of(job)))
+                wf["jobs"].append(extract_job(str(jid), job, matrix_of(job),
+                                              wf_defaults))
     wf["rank"] = rank_workflow(wf)
     return wf
 
@@ -325,9 +344,24 @@ def rank_workflow(wf):
     hay = (wf["path"] + " " + wf["name"]).lower()
     if re.search(r"\b(ci|test|tests|build|check|main|verify)\b", hay):
         score += 3
+    # A workflow named for one hardware target, OS or accelerator is not the
+    # repo's baseline CI, however many merges it runs on. llama.cpp has 50
+    # workflows and the Snapdragon one is not how you build llama.cpp.
+    if re.search(r"(snapdragon|android|ios\b|macos|windows|riscv|wasm|webgpu|"
+                 r"vulkan|sycl|cann|opencl|openvino|musa|hip\b|cuda|ibm|s390|"
+                 r"arm64|aarch64|cross|self-hosted|virtgpu|nix|flatpak|"
+                 r"3rd-party|vendor|freebsd|musl|apple|darwin|osx)", hay):
+        score -= 5
+    # An unqualified name is the baseline by convention.
+    if re.match(r"^(ci|main|test|tests|build|check)$",
+                os.path.splitext(os.path.basename(wf["path"]))[0].lower()):
+        score += 4
     if re.search(r"(release|publish|deploy|docs|stale|label|lock|greet|codeql|"
                  r"scorecard|dependabot|nightly|benchmark|fuzz|translat)", hay):
         score -= 3
+    # Baseline CI is usually the big one: a narrow integration workflow has a
+    # job or two, the workflow that gates merges has many.
+    score += min(3, len(wf["jobs"]) // 3)
     for j in wf["jobs"]:
         if j["services"]:
             score += 2
