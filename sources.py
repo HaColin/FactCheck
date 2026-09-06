@@ -68,6 +68,34 @@ SYSTEM_LIBS = {
                      {"apt": "build-essential python3-dev", "pacman": "base-devel",
                       "brew": "gcc", "dnf": "gcc python3-devel"}),
 }
+# Native modules in other ecosystems, same rule: only packages that reliably
+# build from source. sharp, nokogiri and most sqlite3 builds ship prebuilt
+# binaries for common platforms and are deliberately absent.
+NODE_SYSTEM_LIBS = {
+    "canvas":    ("the Cairo, Pango and JPEG headers (node-gyp builds it)",
+                  {"apt": "libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev",
+                   "pacman": "cairo pango libjpeg-turbo giflib",
+                   "brew": "cairo pango jpeg giflib",
+                   "dnf": "cairo-devel pango-devel libjpeg-turbo-devel"}),
+    "node-sass": ("a C++ toolchain (node-gyp builds it)",
+                  {"apt": "build-essential", "pacman": "base-devel",
+                   "brew": "gcc", "dnf": "gcc-c++ make"}),
+    "zeromq":    ("the ZeroMQ headers",
+                  {"apt": "libzmq3-dev", "pacman": "zeromq",
+                   "brew": "zeromq", "dnf": "zeromq-devel"}),
+}
+RUBY_SYSTEM_LIBS = {
+    "pg":        ("pg_config, from the PostgreSQL client library",
+                  {"apt": "libpq-dev", "pacman": "postgresql-libs",
+                   "brew": "libpq", "dnf": "libpq-devel"}),
+    "mysql2":    ("the MySQL client headers",
+                  {"apt": "libmysqlclient-dev", "pacman": "mariadb-libs",
+                   "brew": "mysql-client", "dnf": "mysql-devel"}),
+    "rmagick":   ("the ImageMagick headers",
+                  {"apt": "libmagickwand-dev", "pacman": "imagemagick",
+                   "brew": "imagemagick", "dnf": "ImageMagick-devel"}),
+}
+
 # `psycopg[c]` and `psycopg[binary]` are the same distribution with different
 # extras; only the C build needs headers.
 _REQ_NAME = re.compile(r"^\s*([A-Za-z0-9_.-]+)\s*(\[[^\]]*\])?")
@@ -80,6 +108,8 @@ def system_libs(root, inv):
     the precedence tiers describe what CI executes, which this is not.
     """
     found, seen = [], set()
+    found += _node_system_libs(root, seen)
+    found += _ruby_system_libs(root, seen)
     files = [p for p in inv.get("manifest", [])
              if re.search(r"requirements.*\.txt$|pyproject\.toml$", p)]
     files += [p for p in tracked_requirements(root) if p not in files]
@@ -103,6 +133,53 @@ def system_libs(root, inv):
             found.append({"package": m.group(1), "needs": needs,
                           "installs": installs, "path": path, "line": i + 1})
     return found
+
+
+def _node_system_libs(root, seen):
+    """package.json dependencies that node-gyp builds against system headers."""
+    text = collect.read(root, "package.json")
+    if not text:
+        return []
+    try:
+        pkg = json.loads(text)
+    except ValueError:
+        return []
+    names = set()
+    for section in ("dependencies", "devDependencies", "optionalDependencies"):
+        names |= set(pkg.get(section) or {})
+    out = []
+    for name in sorted(names & set(NODE_SYSTEM_LIBS)):
+        if name in seen:
+            continue
+        seen.add(name)
+        needs, installs = NODE_SYSTEM_LIBS[name]
+        out.append({"package": name, "needs": needs, "installs": installs,
+                    "path": "package.json",
+                    "line": _find_line(text, '"%s"' % re.escape(name))})
+    return out
+
+
+GEM_LINE = re.compile(r"""\s*gem\s+["']([\w.-]+)["']""")
+
+
+def _ruby_system_libs(root, seen):
+    """Gemfile entries with native extensions."""
+    text = collect.read(root, "Gemfile")
+    if not text:
+        return []
+    out = []
+    for i, raw in enumerate(text.split("\n")):
+        m = GEM_LINE.match(raw)
+        if not m:
+            continue
+        name = m.group(1).lower()
+        if name not in RUBY_SYSTEM_LIBS or name in seen:
+            continue
+        seen.add(name)
+        needs, installs = RUBY_SYSTEM_LIBS[name]
+        out.append({"package": m.group(1), "needs": needs, "installs": installs,
+                    "path": "Gemfile", "line": i + 1})
+    return out
 
 
 def tracked_requirements(root):

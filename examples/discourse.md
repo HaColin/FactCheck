@@ -19,6 +19,15 @@ Where the documentation and the executed configuration disagree. CI wins because
 - `readme` says *3.4+* — [`README.md:48`](https://github.com/discourse/discourse/blob/5e9779d4cd418af07a6ed01005d558eda76f2f69/README.md#L48)
   > Before you get started, ensure you have the following minimum versions: [Ruby 3.4+ , [PostgreSQL 15 , [Redis 7 .
 
+## System packages
+
+These are not installed by `pip`. CI's runner image already has them, which is why its workflow never mentions them — and why a fresh clone fails partway through the install with an error about a missing header.
+
+| Because of | It needs | Debian/Ubuntu | macOS | Arch |
+|---|---|---|---|---|
+| [`pg`](https://github.com/discourse/discourse/blob/5e9779d4cd418af07a6ed01005d558eda76f2f69/Gemfile#L93) at `Gemfile:93` | pg_config, from the PostgreSQL client library | `libpq-dev` | `libpq` | `postgresql-libs` |
+| [`mysql2`](https://github.com/discourse/discourse/blob/5e9779d4cd418af07a6ed01005d558eda76f2f69/Gemfile#L241) at `Gemfile:241` | the MySQL client headers | `libmysqlclient-dev` | `mysql-client` | `mariadb-libs` |
+
 ## Required but undocumented
 
 CI needs these. The prose never mentions them — which is usually why a fresh clone does not run.

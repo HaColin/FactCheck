@@ -83,6 +83,29 @@ else
   warn "Not inside a git repository. Run this from the root of a clone of discourse/discourse."
 fi
 
+bold "System packages CI's runner already had"
+info "These are not installed by pip or npm. Install them yourself; this script will not run anything as root."
+warn 'pg needs pg_config, from the PostgreSQL client library  <- Gemfile:93'
+if command -v apt-get >/dev/null 2>&1; then
+  info 'sudo apt-get install -y libpq-dev'
+elif command -v brew >/dev/null 2>&1; then
+  info 'brew install libpq'
+elif command -v pacman >/dev/null 2>&1; then
+  info 'sudo pacman -S --needed postgresql-libs'
+elif command -v dnf >/dev/null 2>&1; then
+  info 'sudo dnf install -y libpq-devel'
+fi
+warn 'mysql2 needs the MySQL client headers  <- Gemfile:241'
+if command -v apt-get >/dev/null 2>&1; then
+  info 'sudo apt-get install -y libmysqlclient-dev'
+elif command -v brew >/dev/null 2>&1; then
+  info 'brew install mysql-client'
+elif command -v pacman >/dev/null 2>&1; then
+  info 'sudo pacman -S --needed mariadb-libs'
+elif command -v dnf >/dev/null 2>&1; then
+  info 'sudo dnf install -y mysql-devel'
+fi
+
 bold "Checking what CI says this needs"
 MISSING=0
 if have node; then

@@ -84,6 +84,29 @@ def test_system_library_table_is_conservative():
                   bool(installs.get(mgr)), True)
 
 
+def test_node_and_ruby_native_dependencies():
+    """mastodon's Gemfile needs libpq; the table is not Python-only."""
+    import json
+    import os
+    import shutil
+    import tempfile
+    import sources
+    tmp = tempfile.mkdtemp()
+    try:
+        with open(os.path.join(tmp, "Gemfile"), "w") as fh:
+            fh.write('source "https://rubygems.org"\ngem "rails"\ngem "pg", "~> 1.5"\n')
+        with open(os.path.join(tmp, "package.json"), "w") as fh:
+            json.dump({"dependencies": {"express": "^4", "canvas": "^2"}}, fh)
+        found = {f["package"]: f for f in sources.system_libs(tmp, {"manifest": []})}
+        check("ruby pg found", "pg" in found, True)
+        check("pg cited to its Gemfile line", found["pg"]["line"], 3)
+        check("node canvas found", "canvas" in found, True)
+        check("packages without native builds are ignored",
+              "rails" in found or "express" in found, False)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def test_psycopg_extras_decide_whether_headers_are_needed():
     """`psycopg[c]` builds from source; `psycopg[binary]` does not."""
     import os

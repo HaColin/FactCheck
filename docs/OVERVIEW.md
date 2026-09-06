@@ -180,6 +180,8 @@ but the generated `factcheck.sh`:
 
 - **pallets/flask** — `uv sync`, then the full tox matrix, mypy and pyright, all
   green, exit 0.
+- **expressjs/express** — the Node case: `npm install`, then `npm run test-ci`,
+  1260 tests passing with coverage, exit 0.
 - **netbox-community/netbox** — the harder case: `--with-services` starts the
   Postgres and Redis containers CI declares, using the credentials CI declares
   for them (`POSTGRES_USER=netbox`, not a generic default — a generic password
@@ -302,8 +304,10 @@ table, cited to the requirements line that triggered it, with the install comman
 for apt, brew, pacman and dnf. The document lists them; the script prints them and
 installs nothing, because this needs root.
 
-The table is deliberately conservative — `psycopg2-binary` and `Pillow` ship
-wheels and are absent. A prerequisite that is not really required wastes the
+It covers Python, Node and Ruby: mastodon's `pg` gem and node-gyp packages like
+`canvas` need headers for the same reason. The table is deliberately
+conservative — `psycopg2-binary`, `Pillow`, `sharp` and `nokogiri` ship prebuilt
+binaries and are absent. A prerequisite that is not really required wastes the
 reader's time and costs more trust than it earns.
 
 ## Issue mining

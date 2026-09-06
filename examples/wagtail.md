@@ -8,6 +8,8 @@ What it takes to run this repo, read from CI rather than from prose.
 
 **verified** = executed by CI or a container build  ·  *claimed* = prose a human wrote once
 
+> This repo also configures `.circleci/config.yml`, which FACTCHECK does not read. Everything below comes from GitHub Actions alone.
+
 ## Conflicts
 
 Nothing in the prose contradicts what CI executes.
@@ -121,7 +123,7 @@ The prose gives these commands; nothing in CI executes them.
 
 | Category | Files |
 |---|---|
-| ci | `.github/workflows/codeql-analysis.yml`, `.github/workflows/latest-deps.yml`, `.github/workflows/test.yml`, `.github/workflows/zizmor.yml`, `.circleci/config.yml` |
+| ci | `.circleci/config.yml`, `.github/workflows/codeql-analysis.yml`, `.github/workflows/latest-deps.yml`, `.github/workflows/test.yml`, `.github/workflows/zizmor.yml` |
 | container | _none found_ |
 | manifest | `package.json`, `pyproject.toml`, `setup.py`, `Makefile` |
 | lockfile | `package-lock.json`, `uv.lock` |
