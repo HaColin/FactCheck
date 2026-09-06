@@ -58,6 +58,13 @@ def render(meta, inv, wfs, report):
     w(LEGEND)
     w("")
 
+    if not primary:
+        w("> **No CI runs on merge in this repo.** Nothing below is verified — "
+          "there is no executed configuration to check the prose against, so "
+          "every line here is a claim someone wrote, carried through with its "
+          "source attached.")
+        w("")
+
     _conflicts(w, meta, report)
     _undocumented(w, meta, report)
     _runtime(w, meta, report)
@@ -80,7 +87,11 @@ def _h(w, title):
 def _conflicts(w, meta, report):
     _h(w, "Conflicts")
     if not report.conflicts:
-        w("Nothing in the prose contradicts what CI executes.")
+        if meta.get("primary"):
+            w("Nothing in the prose contradicts what CI executes.")
+        else:
+            w("No CI to compare the prose against, so no conflict can be "
+              "established either way.")
         w("")
         return
     w("Where the documentation and the executed configuration disagree. CI wins "

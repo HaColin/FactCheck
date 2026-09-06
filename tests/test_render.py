@@ -92,6 +92,17 @@ def test_no_placeholder_leaks():
             FAILED.append("document contains a leaked placeholder: %r" % bad)
 
 
+def test_no_ci_says_nothing_is_verified():
+    """A repo with no merge-triggered workflow must not imply verification."""
+    meta = dict(META, primary=None)
+    claims = [Claim("runtime", "node", "18", "readme", "README.md", 3)]
+    report = precedence.reconcile(claims, {}, "needs node 18")
+    doc = render.render(meta, INV, [], report)
+    check("says there is no CI", "No CI runs on merge" in doc, True)
+    check("does not claim prose agrees with CI",
+          "Nothing in the prose contradicts" in doc, False)
+
+
 def test_unpinned_image_is_not_invented():
     """netbox's CI says `image: postgres`. The document must not say 15."""
     claims = [Claim("services", "postgres", "postgres", "ci-services",
