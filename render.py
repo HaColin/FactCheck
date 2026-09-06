@@ -140,8 +140,21 @@ def _undocumented(w, meta, report):
     w("")
 
 
+def _cell(value, limit=120):
+    """Flatten a value for a table cell.
+
+    A newline in a CI env value (a block scalar, say) silently breaks the
+    markdown row, and a broken row loses its citation -- which would put an
+    uncited claim in the document. Collapse first, then escape the pipe.
+    """
+    v = " ".join(str(value or "").split()).replace("|", "\\|")
+    if len(v) > limit:
+        v = v[:limit - 1] + "…"
+    return v
+
+
 def _fmt(value):
-    v = str(value or "").replace("|", "\\|")
+    v = _cell(value)
     return "`%s`" % v if v else "—"
 
 
@@ -177,7 +190,7 @@ def _services(w, meta, report):
     w("|---|---|---|---|")
     for res in rows:
         w("| %s | %s | %s | %s |"
-          % (res.key, _fmt(res.value), res.winner.note or "—",
+          % (res.key, _fmt(res.value), _cell(res.winner.note) or "—",
              cite(meta, res.winner)))
     w("")
     unpinned = [r for r in rows if ":" not in str(r.value or "")]

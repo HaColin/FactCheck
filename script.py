@@ -230,12 +230,19 @@ def _preflight(w, meta, report):
 SHELL_VARS = {"HOME", "PATH", "PWD", "USER", "SHELL", "TMPDIR", "LANG",
               "HOSTNAME", "TERM", "UID", "EUID", "PS1", "IFS", "OLDPWD"}
 
+# CI accepts env keys a shell cannot export: keycloak's workflows set
+# `old-version`, and `export old-version=...` is a runtime syntax error that
+# `bash -n` does not catch.
+SHELL_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
 
 def _environment(w, report):
     """CI env blocks, re-exported. `mix deps.get --only $MIX_ENV` is not a
     runnable command until MIX_ENV exists."""
-    rows = [r for r in report.by_fact("env")
-            if r.winner and r.winner.resolved and r.value]
+    all_env = [r for r in report.by_fact("env")
+               if r.winner and r.winner.resolved and r.value]
+    rows = [r for r in all_env if SHELL_IDENT.match(str(r.key))]
+    unexportable = [r for r in all_env if r not in rows]
     exported = set()
     if rows:
         w('bold "Environment CI sets"')
@@ -244,13 +251,22 @@ def _environment(w, report):
             # Jobs may set the same variable differently. The document shows
             # every value; a script has to pick one, so it takes the winning
             # claim -- the highest-authority citation, not a joined string.
-            value = str(res.winner.value)
+            # Collapse whitespace: a multi-line CI value exported verbatim
+            # would embed a newline in the variable.
+            value = " ".join(str(res.winner.value).split())
             w("export %s=%s" % (res.key, _sh(value)))
             w('info %s' % _sh("%s=%s  <- %s" % (res.key, value,
                                                 res.winner.cite)))
             others = [v for v in res.values if v != value]
             if others:
                 w('info %s' % _sh("  other jobs use: %s" % ", ".join(others[:4])))
+        w("")
+
+    if unexportable:
+        w('bold "Set by CI but not a valid shell variable name"')
+        for res in unexportable[:8]:
+            w('warn %s' % _sh("%s=%s  <- %s" % (res.key, res.winner.value,
+                                                res.winner.cite)))
         w("")
 
     referenced = set()

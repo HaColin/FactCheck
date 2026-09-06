@@ -45,10 +45,8 @@ CI needs these. The prose never mentions them — which is usually why a fresh c
 | Tool | Version | Source | |
 |---|---|---|---|
 | node | `24` | [`.github/workflows/developer-docs-lint.yml:41`](https://github.com/discourse/discourse/blob/5e9779d4cd418af07a6ed01005d558eda76f2f69/.github/workflows/developer-docs-lint.yml#L41) | verified |
-| npm | `please-use-pnpm` | [`package.json:50`](https://github.com/discourse/discourse/blob/5e9779d4cd418af07a6ed01005d558eda76f2f69/package.json#L50) | claimed |
 | pnpm | `^10 \| 10.34.5` | [`package.json:52`](https://github.com/discourse/discourse/blob/5e9779d4cd418af07a6ed01005d558eda76f2f69/package.json#L52) | claimed |
 | ruby | `3.3` | [`.github/workflows/developer-docs-publish.yml:37`](https://github.com/discourse/discourse/blob/5e9779d4cd418af07a6ed01005d558eda76f2f69/.github/workflows/developer-docs-publish.yml#L37) | verified |
-| yarn | `please-use-pnpm` | [`package.json:51`](https://github.com/discourse/discourse/blob/5e9779d4cd418af07a6ed01005d558eda76f2f69/package.json#L51) | claimed |
 
 A higher-authority source was present but not literal, so the table fell through to what is shown above:
 

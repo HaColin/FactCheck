@@ -103,6 +103,23 @@ def test_no_ci_says_nothing_is_verified():
           "Nothing in the prose contradicts" in doc, False)
 
 
+def test_multiline_value_does_not_break_a_row():
+    """apache/superset: a CI env value spanning lines broke the markdown row,
+    and a broken row loses its citation -- an uncited claim in the document."""
+    claims = [Claim("env", "DB_URL",
+                    "mysql://a:b@localhost/x?opt=1|2\npostgresql://c:d@localhost/y",
+                    "ci-env", ".github/workflows/ci.yml", 12,
+                    note="job test")]
+    report = precedence.reconcile(claims, {}, "")
+    doc = render.render(META, INV, [], report)
+    rows = [l for l in doc.split("\n") if l.startswith("| `DB_URL`")]
+    check("the row appears", len(rows) > 0, True)
+    for row in rows:
+        check("row kept its citation",
+              "](https://github.com/acme/widget/blob/" in row, True)
+        check("literal pipe is escaped", "\\|" in row, True)
+
+
 def test_unpinned_image_is_not_invented():
     """netbox's CI says `image: postgres`. The document must not say 15."""
     claims = [Claim("services", "postgres", "postgres", "ci-services",

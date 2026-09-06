@@ -114,6 +114,16 @@ def test_env_export_picks_one_value():
     check("no joined value", "|" in exports[0], False)
 
 
+def test_env_key_that_is_not_a_shell_identifier():
+    """keycloak: CI sets `old-version`; `export old-version=…` is a runtime
+    syntax error that bash -n does not catch."""
+    claims = base_claims() + [
+        Claim("env", "old-version", "24.0.4", "ci-env", CI, 20, note="job test")]
+    sh = generate(claims)
+    check("never exported", "export old-version=" in sh, False)
+    check("still reported to the reader", "old-version" in sh, True)
+
+
 def test_service_becomes_a_runnable_docker_command():
     sh = generate()
     check("port checked", "port_open 5432" in sh, True)

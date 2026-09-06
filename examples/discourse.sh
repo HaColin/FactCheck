@@ -76,7 +76,6 @@ else
   warn "node not installed -- CI uses 24 (.github/workflows/developer-docs-lint.yml:41)"
   MISSING=1
 fi
-info 'npm please-use-pnpm expected -- package.json:50'
 if have pnpm; then
   info "pnpm: want ^10 | 10.34.5, have $(pnpm --version)"
 else
@@ -89,7 +88,6 @@ else
   warn "ruby not installed -- CI uses 3.3 (.github/workflows/developer-docs-publish.yml:37)"
   MISSING=1
 fi
-info 'yarn please-use-pnpm expected -- package.json:51'
 if [ "$MISSING" = 1 ]; then
   warn "Install what is missing before continuing."
 fi
