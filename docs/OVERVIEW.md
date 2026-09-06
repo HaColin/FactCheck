@@ -23,7 +23,7 @@ twice.
 | C | Reconcile — source-precedence table, as code | done |
 | D | Emit `FACTCHECK.md` with provenance | done |
 | E | Emit executable `factcheck.sh` | done |
-| F | Issue mining (the only step that spends API rate limit) | todo |
+| F | Issue mining (the only step that spends API rate limit) | done |
 
 Phases A–C make **zero GitHub API calls** — shallow clone only, so nothing counts
 against the 60 req/hour unauthenticated budget. Issue mining is the only API step,
@@ -104,6 +104,7 @@ Lockfile → install command is a pure mapping, no inference: `package-lock.json
 | `precedence.py` | Phase C — the table and the resolution engine |
 | `render.py` | Phase D — emit `FACTCHECK.md` |
 | `script.py` | Phase E — emit `factcheck.sh` |
+| `issues.py` | Phase F — mine the issue tracker (opt-in) |
 | `factcheck.py` | CLI |
 | `examples/` | Documents and scripts generated for six real repos |
 | `sweep.py` | Parser validation harness (needs network) |
@@ -216,11 +217,33 @@ steps, so an `if` wrapped around one in the original workflow is not reproduced.
 generates a script, asks `bash -n` whether it is valid, and executes it under
 `--dry-run` — a generator that emits broken shell should fail its own tests.
 
-## Notes for phase F
+## Issue mining
 
-- Issue mining is the only step that spends API rate limit. `gh auth token` is
-  rung one of the ladder; unauthenticated with a hard query cap is rung two; a
-  403 must still emit the document, with the gotchas section marked skipped.
+`--issues yes` searches the tracker for reported setup problems. It is the only
+step that touches the GitHub API, so it is budgeted and it fails soft:
+
+1. `gh auth token` — most developers already have `gh` authenticated, so this is
+   a token with no signup friction (30 searches/minute).
+2. Unauthenticated, capped at two queries, staying inside the 10/minute budget.
+3. On a 403, exhaustion, or any network fault: keep whatever was found, mark the
+   section skipped, and emit the document anyway. Phases A–E already produced a
+   useful document with zero API calls; enrichment must never sink the run.
+
+**It is off by default, and that is deliberate.** Everything else in the document
+is derived from one commit and renders byte-identical every time. The tracker
+changes underneath you, so mining it is opt-in and the section says so.
+
+Keyword matching cannot tell *"cannot install [this software]"* from *"cannot
+install [a device module in a bay]"* — netbox has both. Two filters carry most
+of the weight: a phrase must actually appear in the issue title or body (GitHub
+search falls back to loose matching), and feature-shaped titles are dropped
+(`Support for…`, `Extend…`, anything labelled `enhancement`). What survives on
+apache/airflow is *"Setting up Airflow for local development is hard"* and
+*"Airflow Helm chart fails on Apple Silicon + kind"*. The section is titled for
+what it is — issues matching a setup-failure phrase, not a verdict.
+
+## Notes
+
 - Images are often unpinned — netbox's CI says `image: postgres` with no tag.
   "PostgreSQL, version unpinned in CI" is honest; inventing `15` is not.
 - Runtime facts can be multi-valued (`3.12 | 3.13 | 3.14`). The document shows

@@ -37,7 +37,7 @@ def _mark(tier):
     return "verified" if tier == "verified" else "claimed"
 
 
-def render(meta, inv, wfs, report):
+def render(meta, inv, wfs, report, gotchas=None):
     out = []
     w = out.append
 
@@ -73,6 +73,7 @@ def render(meta, inv, wfs, report):
     _environment(w, meta, report)
     _os(w, meta, report)
     _unverified(w, meta, report)
+    _gotchas(w, gotchas)
     _sources(w, meta, inv, wfs)
     _method(w)
 
@@ -253,6 +254,37 @@ def _unverified(w, meta, report):
     for res in rows[:12]:
         for m in res.members[:4]:
             w("- `%s` — %s" % (str(m.value).replace("`", "'"), cite(meta, m)))
+    w("")
+
+
+def _gotchas(w, gotchas):
+    """Issue-tracker findings. The one section that is not deterministic."""
+    if not gotchas or not gotchas.get("enabled"):
+        return
+    _h(w, "Reported problems")
+    status = gotchas.get("status")
+    if status != "ok":
+        w("_Skipped: %s._ Everything above was produced without touching the "
+          "GitHub API, so the rest of this document is unaffected."
+          % gotchas.get("note", status))
+        w("")
+        return
+    findings = gotchas.get("findings") or []
+    if not findings:
+        w("Nothing in the issue tracker matches a setup-failure phrase.")
+        w("")
+        return
+    w("Issues whose text matches a setup-failure phrase, most-discussed first. "
+      "This is keyword matching over the tracker, not a judgement about whether "
+      "each one still applies — and unlike every other section, it reflects the "
+      "tracker on the day it ran rather than the commit above.")
+    w("")
+    w("| Issue | Matched | Title | Activity |")
+    w("|---|---|---|---|")
+    for f in findings[:15]:
+        w("| [#%s](%s) | %s | %s | %s |"
+          % (f["number"], f["url"], f["matched"], _cell(f["title"], 90),
+             f["comments"] + f["reactions"]))
     w("")
 
 

@@ -14,6 +14,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import collect
 import extract
+import issues as issues_mod
 import precedence
 import render
 import script as script_mod
@@ -43,6 +44,10 @@ def main():
                     help="write the document (default FACTCHECK.md; - for stdout)")
     ap.add_argument("-s", "--script", nargs="?", const="factcheck.sh",
                     help="write the setup script (default factcheck.sh)")
+    ap.add_argument("--issues", choices=("yes", "no"), default="no",
+                    help="mine the issue tracker for setup problems (the only "
+                         "step that spends GitHub API rate limit; off by "
+                         "default because its result varies over time)")
     ap.add_argument("--json-summary", action="store_true",
                     help="print a machine-readable summary as the last stdout line")
     args = ap.parse_args()
@@ -160,6 +165,20 @@ def main():
 
     report = phase_c(dest, inv, wfs)
 
+    gotchas = {"enabled": args.issues == "yes", "status": "skipped",
+               "note": "not requested", "findings": []}
+    if gotchas["enabled"]:
+        hdr("D. Reported problems  (the only step that spends API rate limit)")
+        found, status, note = issues_mod.mine(owner, name)
+        gotchas.update(status=status, note=note, findings=found)
+        print("  %s -- %s" % (status, note))
+        for f in found[:8]:
+            print("    %s#%-6s%s [%s] %s" % (C, f["number"], R, f["matched"],
+                                             f["title"][:70]))
+        if not found and status == "ok":
+            print("    %snothing in the tracker matches a setup-failure phrase%s"
+                  % (D, R))
+
     if args.out or args.script:
         auth = [wf for wf in wfs if wf.get("authoritative")]
         meta = {"owner": owner, "name": name,
@@ -168,7 +187,7 @@ def main():
                 "branch": collect.default_branch(dest),
                 "primary": auth[0] if auth else None}
         if args.out:
-            text = render.render(meta, inv, wfs, report)
+            text = render.render(meta, inv, wfs, report, gotchas)
             if args.out == "-":
                 print()
                 print(text)
@@ -194,7 +213,8 @@ def main():
                          sh.count("\n step ") + sh.count("\nstep ")
                          + sh.count("step_in "), R))
         if args.json_summary:
-            print(json.dumps(summary(meta, inv, report, args), sort_keys=True))
+            print(json.dumps(summary(meta, inv, report, args, gotchas),
+                             sort_keys=True))
     return 0
 
 
@@ -224,7 +244,7 @@ def _ensure_dir(path):
         os.makedirs(parent, exist_ok=True)
 
 
-def summary(meta, inv, report, args):
+def summary(meta, inv, report, args, gotchas=None):
     """One JSON object, printed last, for a machine reading this run.
 
     Emitted so a caller does not have to regex the human output above --
@@ -251,6 +271,11 @@ def summary(meta, inv, report, args):
             "commands": sum(len(r.members) for f in
                             ("install", "setup", "build", "test", "lint")
                             for r in report.by_fact(f) if r.winner),
+        },
+        "gotchas": {
+            "enabled": (gotchas or {}).get("enabled", False),
+            "status": (gotchas or {}).get("status", "skipped"),
+            "count": len((gotchas or {}).get("findings", [])),
         },
         "artifacts": {
             "document": (os.path.abspath(args.out)
