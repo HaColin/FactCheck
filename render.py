@@ -58,11 +58,21 @@ def render(meta, inv, wfs, report, gotchas=None, syslibs=None):
     w(LEGEND)
     w("")
 
+    other_ci = _other_ci(inv)
     if not primary:
-        w("> **No CI runs on merge in this repo.** Nothing below is verified — "
-          "there is no executed configuration to check the prose against, so "
-          "every line here is a claim someone wrote, carried through with its "
-          "source attached.")
+        w("> **No GitHub Actions workflow runs on merge in this repo.** Nothing "
+          "below is verified — there is no executed configuration to check the "
+          "prose against, so every line here is a claim someone wrote, carried "
+          "through with its source attached.")
+        if other_ci:
+            w(">")
+            w("> This repo does configure %s. FACTCHECK reads GitHub Actions "
+              "only, so that file was not parsed: nothing here is evidence "
+              "about what it does." % _join(other_ci))
+        w("")
+    elif other_ci:
+        w("> This repo also configures %s, which FACTCHECK does not read. "
+          "Everything below comes from GitHub Actions alone." % _join(other_ci))
         w("")
 
     _conflicts(w, meta, report)
@@ -79,6 +89,23 @@ def render(meta, inv, wfs, report, gotchas=None, syslibs=None):
     _method(w)
 
     return "\n".join(out).rstrip() + "\n"
+
+
+def _other_ci(inv):
+    """CI systems present that this tool does not parse.
+
+    Collected in phase A but never read, so saying nothing about them would
+    let a reader mistake silence for absence.
+    """
+    return [p for p in (inv.get("ci") or [])
+            if not p.startswith(".github/workflows/")]
+
+
+def _join(items):
+    items = ["`%s`" % i for i in items]
+    if len(items) == 1:
+        return items[0]
+    return ", ".join(items[:-1]) + " and " + items[-1]
 
 
 def _h(w, title):
@@ -336,6 +363,9 @@ def _sources(w, meta, inv, wfs):
     w("|---|---|")
     for cat, _ in _categories():
         hits = inv.get(cat) or []
+        if cat == "ci":
+            other = _other_ci(inv)
+            hits = other + [h for h in hits if h not in other]
         shown = ", ".join("`%s`" % h for h in hits[:6])
         if len(hits) > 6:
             shown += " _+%d more_" % (len(hits) - 6)

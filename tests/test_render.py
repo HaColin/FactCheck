@@ -116,6 +116,22 @@ def test_unresolvable_runtime_is_still_explained():
     check("it cites what CI actually said", "ci.yml:23" in doc, True)
 
 
+def test_other_ci_systems_are_named_not_ignored():
+    """scikit-learn has .circleci/config.yml. It is collected and never read,
+    so silence about it would let a reader mistake it for absence."""
+    inv = dict(INV, ci=[".github/workflows/ci.yml", ".circleci/config.yml"])
+    doc = render.render(META, inv, [], build_report())
+    check("names the unread config", ".circleci/config.yml" in doc, True)
+    check("says it is not read", "does not read" in doc, True)
+
+    # With no Actions workflow at all, the banner must not claim there is no CI.
+    meta = dict(META, primary=None)
+    doc = render.render(meta, inv, [], build_report())
+    check("banner is specific to Actions",
+          "No GitHub Actions workflow runs on merge" in doc, True)
+    check("still points at the other system", ".circleci/config.yml" in doc, True)
+
+
 def test_no_placeholder_leaks():
     # The Method section documents the ${{ }} fallthrough rule on purpose, so
     # only the findings above it are checked.
