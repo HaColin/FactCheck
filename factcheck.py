@@ -46,6 +46,8 @@ def main():
     ap.add_argument("--json-summary", action="store_true",
                     help="print a machine-readable summary as the last stdout line")
     args = ap.parse_args()
+    args.out = resolve_out(args.out)
+    args.script = resolve_out(args.script)
     if args.table:
         print(precedence.table_as_text())
         return 0
@@ -194,6 +196,26 @@ def main():
         if args.json_summary:
             print(json.dumps(summary(meta, inv, report, args), sort_keys=True))
     return 0
+
+
+def base_dir():
+    """Where a relative output path should land.
+
+    A rote play step runs with cwd set to a rote-managed workspace, while PWD
+    still carries the directory the caller invoked from -- which is where they
+    expect their files. For a plain CLI run the two are the same, so this is a
+    no-op there.
+    """
+    pwd = os.environ.get("PWD")
+    if pwd and os.path.isdir(pwd):
+        return pwd
+    return os.getcwd()
+
+
+def resolve_out(path):
+    if not path or path == "-" or os.path.isabs(path):
+        return path
+    return os.path.normpath(os.path.join(base_dir(), path))
 
 
 def _ensure_dir(path):

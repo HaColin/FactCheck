@@ -83,6 +83,26 @@ def test_citations_point_at_the_read_commit():
     check("every citation pins the commit that was read", shas, {META["sha"]})
 
 
+def test_relative_output_resolves_against_the_callers_directory():
+    """A play step runs in a rote workspace; PWD is where the caller stands."""
+    import os
+    import factcheck as cli
+    old = os.environ.get("PWD")
+    try:
+        os.environ["PWD"] = "/tmp"
+        check("relative path lands where the caller stands",
+              cli.resolve_out("out/FACTCHECK.md"), "/tmp/out/FACTCHECK.md")
+        check("absolute path is untouched",
+              cli.resolve_out("/srv/x.md"), "/srv/x.md")
+        check("stdout marker is untouched", cli.resolve_out("-"), "-")
+        os.environ["PWD"] = "/definitely/not/a/directory"
+        check("falls back to cwd when PWD is unusable",
+              cli.resolve_out("a.md"), os.path.join(os.getcwd(), "a.md"))
+    finally:
+        if old is not None:
+            os.environ["PWD"] = old
+
+
 def test_no_placeholder_leaks():
     # The Method section documents the ${{ }} fallthrough rule on purpose, so
     # only the findings above it are checked.
