@@ -173,6 +173,13 @@ def main():
 
     report = phase_c(dest, inv, wfs)
 
+    syslibs = sources.system_libs(dest, inv)
+    if syslibs:
+        print("\n  %ssystem packages CI's runner already had%s" % (Y, R))
+        for lib in syslibs:
+            print("    %-14s needs %s  %s<- %s:%d%s"
+                  % (lib["package"], lib["needs"], D, lib["path"], lib["line"], R))
+
     gotchas = {"enabled": args.issues == "yes", "status": "skipped",
                "note": "not requested", "findings": []}
     if gotchas["enabled"]:
@@ -195,7 +202,7 @@ def main():
                 "branch": collect.default_branch(dest),
                 "primary": auth[0] if auth else None}
         if args.out:
-            text = render.render(meta, inv, wfs, report, gotchas)
+            text = render.render(meta, inv, wfs, report, gotchas, syslibs)
             if args.out == "-":
                 print()
                 print(text)
@@ -206,7 +213,7 @@ def main():
                       % (G, args.out, R, D, text.count(chr(10)) + 1,
                          text.count("](%s/blob/" % meta["url"]), R))
         if args.script:
-            sh = script_mod.render_script(meta, report)
+            sh = script_mod.render_script(meta, report, syslibs)
             if args.script == "-":
                 print()
                 print(sh)

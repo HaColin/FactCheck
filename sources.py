@@ -42,6 +42,81 @@ LOCKFILE_INSTALL = [
     ("composer.lock",     "composer install"),
 ]
 
+# Python packages that build from source against system headers. A CI runner
+# image ships these already, so CI never mentions them -- which is exactly why
+# a fresh clone fails at `pip install` with an error about a missing header.
+# Deliberately conservative: psycopg2-binary and Pillow ship wheels and are
+# absent, because a prerequisite that is not really required wastes the
+# reader's time and costs trust.
+SYSTEM_LIBS = {
+    "psycopg2":     ("pg_config, from the PostgreSQL client library",
+                     {"apt": "libpq-dev", "pacman": "postgresql-libs",
+                      "brew": "libpq", "dnf": "libpq-devel"}),
+    "psycopg-c":    ("pg_config, from the PostgreSQL client library",
+                     {"apt": "libpq-dev", "pacman": "postgresql-libs",
+                      "brew": "libpq", "dnf": "libpq-devel"}),
+    "mysqlclient":  ("the MySQL client headers",
+                     {"apt": "libmysqlclient-dev", "pacman": "mariadb-libs",
+                      "brew": "mysql-client", "dnf": "mysql-devel"}),
+    "python-ldap":  ("the OpenLDAP headers",
+                     {"apt": "libldap2-dev libsasl2-dev", "pacman": "libldap",
+                      "brew": "openldap", "dnf": "openldap-devel"}),
+    "pycairo":      ("the Cairo headers",
+                     {"apt": "libcairo2-dev", "pacman": "cairo",
+                      "brew": "cairo", "dnf": "cairo-devel"}),
+    "uwsgi":        ("a C toolchain and Python headers",
+                     {"apt": "build-essential python3-dev", "pacman": "base-devel",
+                      "brew": "gcc", "dnf": "gcc python3-devel"}),
+}
+# `psycopg[c]` and `psycopg[binary]` are the same distribution with different
+# extras; only the C build needs headers.
+_REQ_NAME = re.compile(r"^\s*([A-Za-z0-9_.-]+)\s*(\[[^\]]*\])?")
+
+
+def system_libs(root, inv):
+    """System packages the dependencies need but CI never mentions.
+
+    Returns dicts, not Claims: there is one source and nothing to rank, and
+    the precedence tiers describe what CI executes, which this is not.
+    """
+    found, seen = [], set()
+    files = [p for p in inv.get("manifest", [])
+             if re.search(r"requirements.*\.txt$|pyproject\.toml$", p)]
+    files += [p for p in tracked_requirements(root) if p not in files]
+    for path in files:
+        text = collect.read(root, path)
+        if not text:
+            continue
+        for i, raw in enumerate(text.split("\n")):
+            line = raw.split("#", 1)[0].strip().strip('",\'')
+            m = _REQ_NAME.match(line)
+            if not m:
+                continue
+            name = m.group(1).lower()
+            extras = (m.group(2) or "").lower()
+            if name == "psycopg" and "c" in extras.strip("[]").split(","):
+                name = "psycopg-c"
+            if name not in SYSTEM_LIBS or name in seen:
+                continue
+            seen.add(name)
+            needs, installs = SYSTEM_LIBS[name]
+            found.append({"package": m.group(1), "needs": needs,
+                          "installs": installs, "path": path, "line": i + 1})
+    return found
+
+
+def tracked_requirements(root):
+    """requirements.txt files anywhere in the tree, not just at the root."""
+    try:
+        out = []
+        for p in collect.tracked_files(root):
+            if re.search(r"(^|/)requirements[\w.-]*\.txt$", p):
+                out.append(p)
+        return out[:6]
+    except Exception:
+        return []
+
+
 # Docker image name -> the runtime it pins.
 IMAGE_RUNTIME = {
     "node": "node", "python": "python", "golang": "go", "go": "go",

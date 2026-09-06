@@ -37,7 +37,7 @@ def _mark(tier):
     return "verified" if tier == "verified" else "claimed"
 
 
-def render(meta, inv, wfs, report, gotchas=None):
+def render(meta, inv, wfs, report, gotchas=None, syslibs=None):
     out = []
     w = out.append
 
@@ -66,6 +66,7 @@ def render(meta, inv, wfs, report, gotchas=None):
         w("")
 
     _conflicts(w, meta, report)
+    _system(w, meta, syslibs)
     _undocumented(w, meta, report)
     _runtime(w, meta, report)
     _services(w, meta, report)
@@ -121,6 +122,38 @@ def _conflicts(w, meta, report):
             if losing.note:
                 w("  > %s" % losing.note.strip()[:180])
         w("")
+
+
+def _system(w, meta, syslibs):
+    """System packages the dependencies need and nobody writes down."""
+    if not syslibs:
+        return
+    _h(w, "System packages")
+    w("These are not installed by `pip`. CI's runner image already has them, "
+      "which is why its workflow never mentions them — and why a fresh clone "
+      "fails partway through the install with an error about a missing header.")
+    w("")
+    w("| Because of | It needs | Debian/Ubuntu | macOS | Arch |")
+    w("|---|---|---|---|---|")
+    for lib in syslibs:
+        i = lib["installs"]
+        w("| %s | %s | `%s` | `%s` | `%s` |"
+          % (cite(meta, _FakeClaim(lib["path"], lib["line"])) and
+             "[`%s`](%s) at %s" % (lib["package"],
+                                   blob(meta, lib["path"], lib["line"]),
+                                   "`%s:%d`" % (lib["path"], lib["line"])),
+             lib["needs"], i.get("apt", "—"), i.get("brew", "—"),
+             i.get("pacman", "—")))
+    w("")
+
+
+class _FakeClaim(object):
+    """Just enough of a Claim for cite(); syslibs are not ranked facts."""
+    __slots__ = ("path", "line")
+
+    def __init__(self, path, line):
+        self.path = path
+        self.line = line
 
 
 def _undocumented(w, meta, report):

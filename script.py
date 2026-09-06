@@ -116,7 +116,8 @@ def _sh(text):
     return "'" + str(text).replace("'", "'\\''") + "'"
 
 
-def render_script(meta, report):
+def render_script(meta, report, syslibs=None):
+    """`meta["primary"]` scopes which commands run: see _kept()."""
     out = []
     w = out.append
     primary = meta.get("primary")
@@ -212,15 +213,39 @@ def render_script(meta, report):
     w("fi")
     w("")
 
+    _system(w, syslibs)
     _preflight(w, meta, report)
     _environment(w, report)
     _services(w, report)
-    _commands(w, report)
+    _commands(w, report, primary["path"] if primary else None)
 
     w('bold "Done"')
     w('info "Every command above came from %s at %s."'
       % (primary["path"] if primary else "the repo", meta["sha"][:12]))
     return "\n".join(out).rstrip() + "\n"
+
+
+def _system(w, syslibs):
+    """System packages, printed for a human. Never installed: this needs root."""
+    if not syslibs:
+        return
+    w('bold "System packages CI\'s runner already had"')
+    w('info "These are not installed by pip or npm. Install them yourself; '
+      'this script will not run anything as root."')
+    for lib in syslibs:
+        w('warn %s' % _sh("%s needs %s  <- %s:%d"
+                          % (lib["package"], lib["needs"], lib["path"], lib["line"])))
+        i = lib["installs"]
+        w('if command -v apt-get >/dev/null 2>&1; then')
+        w('  info %s' % _sh("sudo apt-get install -y " + i.get("apt", "")))
+        w('elif command -v brew >/dev/null 2>&1; then')
+        w('  info %s' % _sh("brew install " + i.get("brew", "")))
+        w('elif command -v pacman >/dev/null 2>&1; then')
+        w('  info %s' % _sh("sudo pacman -S --needed " + i.get("pacman", "")))
+        w('elif command -v dnf >/dev/null 2>&1; then')
+        w('  info %s' % _sh("sudo dnf install -y " + i.get("dnf", "")))
+        w("fi")
+    w("")
 
 
 def _preflight(w, meta, report):
@@ -297,7 +322,7 @@ def _environment(w, report):
 
     referenced = set()
     for fact in ("install", "setup", "build", "test"):
-        for claim, _ in _kept(report, fact):
+        for claim, _ in _kept(report, fact):  # unscoped: report every reference
             referenced |= set(re.findall(r"\$\{?([A-Z][A-Z0-9_]{2,})\}?",
                                          str(claim.value)))
     unknown = sorted(referenced - exported - SHELL_VARS)
@@ -336,11 +361,11 @@ def _services(w, report):
     w("")
 
 
-def _commands(w, report):
+def _commands(w, report, primary=None):
     sections = [("install", "Install"), ("setup", "Setup"), ("build", "Build")]
     for fact, title in sections:
-        _section(w, report, fact, title)
-    rows = _kept(report, "test")
+        _section(w, report, fact, title, primary)
+    rows = _kept(report, "test", primary)
     if not rows:
         return
     w('if [ "$SKIP_TESTS" = 1 ]; then')
@@ -353,9 +378,9 @@ def _commands(w, report):
     w("")
 
 
-def _section(w, report, fact, title):
-    rows = _kept(report, fact)
-    manual = _manual(report, fact)
+def _section(w, report, fact, title, primary=None):
+    rows = _kept(report, fact, primary)
+    manual = _manual(report, fact, primary)
     if not rows and not manual:
         return
     w('bold "%s"' % title)
@@ -385,10 +410,20 @@ def _emit(w, claim, indent=""):
         w('%sstep %s %s' % (indent, _sh(claim.cite), _sh(claim.value)))
 
 
-def _kept(report, fact):
+def _kept(report, fact, primary=None):
+    """Commands the script will run.
+
+    Scoped to the primary workflow. netbox has no build step in ci.yml, so the
+    `build` fact resolves to `python -m build` in release.yml -- packaging a
+    wheel, which is not how you run the repo, and which fails because CI
+    installs the `build` module in a step of its own. The document still lists
+    it, cited to the workflow it came from; the script does not run it.
+    """
     out = []
     for res in report.by_fact(fact):
         if not res.winner:
+            continue
+        if primary and res.winner.path != primary:
             continue
         for claim in res.members:
             verdict, reason = classify_command(str(claim.value))
@@ -397,10 +432,12 @@ def _kept(report, fact):
     return _dedupe(out)
 
 
-def _manual(report, fact):
+def _manual(report, fact, primary=None):
     out = []
     for res in report.by_fact(fact):
         if not res.winner:
+            continue
+        if primary and res.winner.path != primary:
             continue
         for claim in res.members:
             verdict, reason = classify_command(str(claim.value))
