@@ -8,22 +8,22 @@
  * provenance:
  *   author: colinha888@gmail.com
  * parameters:
+ * - name: repo_url
+ *   type: string
+ *   required: true
+ *   description: Which GitHub repository to check. Paste its URL, e.g. https://github.com/netbox-community/netbox -- a browser URL with /tree/main on the end works too, and so does the short form netbox-community/netbox.
  * - name: out_dir
  *   type: string
  *   required: false
  *   default: .
- *   description: Where to write FACTCHECK.md and factcheck.sh. Defaults to the directory you run from; a relative path resolves there too. Created if missing.
+ *   description: Where to write the two files, FACTCHECK.md and factcheck.sh. Press Enter to use the folder you ran this from. A folder that does not exist yet is created.
  * - name: mine_issues
  *   type: string
  *   required: false
  *   default: no
- *   description: '''yes'' also searches the issue tracker for reported setup problems. This is the only step that spends GitHub API rate limit, and its result varies over time; everything else is derived from the commit alone.'
- * - name: repo_url
- *   type: string
- *   required: true
- *   description: Public GitHub repository URL, e.g. https://github.com/netbox-community/netbox
+ *   description: Press Enter to skip this. Type yes to also search the repository's issue tracker for reported setup problems -- slower, and the only part that uses GitHub API rate limit.
  * metadata:
- *   version: 1.6.1
+ *   version: 1.6.2
  *   rote_version: 0.80.0
  *   contract:
  *     atomic: true

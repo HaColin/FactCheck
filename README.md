@@ -17,7 +17,7 @@ twice.
 ## Run it
 
 ```sh
-rote play run https://play.modiqo.ai/factcheck/factcheck@1.6.1 \
+rote play run https://play.modiqo.ai/factcheck/factcheck@1.6.2 \
   repo_url=https://github.com/netbox-community/netbox
 ```
 
@@ -26,7 +26,7 @@ installs rote, signs you in, shows what the play will do, and asks before
 running it:
 
 ```sh
-curl -fsSL "https://play.modiqo.ai/install?play=factcheck/factcheck@1.6.1" | sh
+curl -fsSL "https://play.modiqo.ai/install?play=factcheck/factcheck@1.6.2" | sh
 ```
 
 It writes `FACTCHECK.md` and `factcheck.sh` into the directory you ran from.
@@ -154,18 +154,18 @@ being coerced to the boolean `True`, which is what a workflow file means by it.
 
 ## The rote Play
 
-Published at **https://play.modiqo.ai/factcheck/factcheck@1.6.1** — public, and
+Published at **https://play.modiqo.ai/factcheck/factcheck@1.6.2** — public, and
 runnable by anyone:
 
 ```sh
-rote play run https://play.modiqo.ai/factcheck/factcheck@1.6.1 \
+rote play run https://play.modiqo.ai/factcheck/factcheck@1.6.2 \
   repo_url=https://github.com/netbox-community/netbox
 ```
 
 Or with no rote installed at all, one line:
 
 ```sh
-curl -fsSL "https://play.modiqo.ai/install?play=factcheck/factcheck@1.6.1" | sh
+curl -fsSL "https://play.modiqo.ai/install?play=factcheck/factcheck@1.6.2" | sh
 ```
 
 | Parameter | Required | Default |
