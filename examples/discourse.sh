@@ -145,12 +145,6 @@ step '.github/workflows/tests.yml:179' 'bin/rake db:create'
 step '.github/workflows/tests.yml:183' 'bin/rake db:migrate'
 step '.github/workflows/tests.yml:187' 'bin/rake parallel:create parallel:migrate'
 
-bold "Build"
-step 'package.json:38' 'npm run lint:types'
-step 'package.json:39' 'npm run types:generate'
-step 'package.json:40' 'npm run types:watch'
-step 'package.json:45' 'npm run build'
-
 if [ "$SKIP_TESTS" = 1 ]; then
   bold "Skipping tests (--skip-tests)"
 else

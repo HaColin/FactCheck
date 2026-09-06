@@ -205,7 +205,10 @@ info 'postgres  postgres  <- docker-compose.yml:15'
 if port_open 5432; then
   info "postgres: something is listening on 5432"
 elif [ "$START_SERVICES" = 1 ]; then
-  step 'docker-compose.yml:15' 'docker run -d --name factcheck-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres'
+  if ! step 'docker-compose.yml:15' 'docker run -d --name factcheck-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres'; then
+    warn "could not start postgres. Start it yourself on port 5432 and re-run, or drop --with-services."
+    exit 1
+  fi
 else
   warn "postgres: nothing on port 5432. Start it, or re-run with --with-services:"
   info 'docker run -d --name factcheck-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres'
@@ -214,37 +217,13 @@ info 'redis  redis:latest  <- docker-compose.yml:28'
 if port_open 6379; then
   info "redis: something is listening on 6379"
 elif [ "$START_SERVICES" = 1 ]; then
-  step 'docker-compose.yml:28' 'docker run -d --name factcheck-redis -p 6379:6379 redis:latest'
+  if ! step 'docker-compose.yml:28' 'docker run -d --name factcheck-redis -p 6379:6379 redis:latest'; then
+    warn "could not start redis. Start it yourself on port 6379 and re-run, or drop --with-services."
+    exit 1
+  fi
 else
   warn "redis: nothing on port 6379. Start it, or re-run with --with-services:"
   info 'docker run -d --name factcheck-redis -p 6379:6379 redis:latest'
-fi
-
-bold "Install"
-warn 'run this yourself (needs root or a system package manager): npm install -g npm@11.5.1'
-info '.github/workflows/changesets.yml:33'
-
-bold "Setup"
-step 'README.md:230' 'yarn workspace @calcom/prisma db-migrate'
-step 'README.md:284' 'yarn db-seed'
-step 'README.md:689' 'yarn seed-app-store'
-
-bold "Build"
-step 'package.json:30' 'npm run build'
-step 'package.json:31' 'npm run build:ai'
-
-if [ "$SKIP_TESTS" = 1 ]; then
-  bold "Skipping tests (--skip-tests)"
-else
-  bold "Test"
-  step 'package.json:67' 'npm run tdd'
-  step 'package.json:68' 'npm run e2e'
-  step 'package.json:69' 'npm run e2e:app-store'
-  step 'package.json:70' 'npm run e2e:embed'
-  step 'package.json:71' 'npm run e2e:embed-react'
-  step 'package.json:76' 'npm run test-playwright'
-  step 'package.json:77' 'npm run test'
-  step 'package.json:78' 'npm run test:ui'
 fi
 
 bold "Done"

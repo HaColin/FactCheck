@@ -67,6 +67,45 @@ def test_error_is_a_value_error():
           issubclass(collect.NotAGitHubRepo, ValueError), True)
 
 
+def test_system_library_table_is_conservative():
+    """A prerequisite that is not really needed costs more trust than it earns."""
+    import sources
+    # These ship wheels; naming them would send readers to install nothing.
+    for absent in ("psycopg2-binary", "pillow", "numpy", "cryptography", "lxml"):
+        check("%s is not claimed to need system headers" % absent,
+              absent in sources.SYSTEM_LIBS, False)
+    # These reliably fail without headers.
+    for present in ("psycopg2", "psycopg-c", "mysqlclient", "python-ldap"):
+        check("%s is covered" % present, present in sources.SYSTEM_LIBS, True)
+    for name, (needs, installs) in sources.SYSTEM_LIBS.items():
+        check("%s says what it needs" % name, bool(needs), True)
+        for mgr in ("apt", "brew", "pacman", "dnf"):
+            check("%s has an install candidate for %s" % (name, mgr),
+                  bool(installs.get(mgr)), True)
+
+
+def test_psycopg_extras_decide_whether_headers_are_needed():
+    """`psycopg[c]` builds from source; `psycopg[binary]` does not."""
+    import os
+    import tempfile
+    import sources
+    tmp = tempfile.mkdtemp()
+    try:
+        with open(os.path.join(tmp, "requirements.txt"), "w") as fh:
+            fh.write("django==5.0\npsycopg[c,pool]==3.2\n")
+        inv = {"manifest": ["requirements.txt"]}
+        found = sources.system_libs(tmp, inv)
+        check("psycopg[c] is flagged", [f["package"] for f in found], ["psycopg"])
+        check("cited to its line", found[0]["line"], 2)
+
+        with open(os.path.join(tmp, "requirements.txt"), "w") as fh:
+            fh.write("psycopg[binary]==3.2\n")
+        check("psycopg[binary] is not flagged", sources.system_libs(tmp, inv), [])
+    finally:
+        import shutil
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for t in tests:

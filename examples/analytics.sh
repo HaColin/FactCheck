@@ -116,16 +116,22 @@ info 'clickhouse  clickhouse/clickhouse-server:25.11.5.8-alpine  <- .github/work
 if port_open 8123; then
   info "clickhouse: something is listening on 8123"
 elif [ "$START_SERVICES" = 1 ]; then
-  step '.github/workflows/elixir.yml:42' 'docker run -d --name factcheck-clickhouse -p 8123:8123 clickhouse/clickhouse-server:25.11.5.8-alpine'
+  if ! step '.github/workflows/elixir.yml:42' 'docker run -d --name factcheck-clickhouse -p 8123:8123 -e CLICKHOUSE_SKIP_USER_SETUP=1 clickhouse/clickhouse-server:25.11.5.8-alpine'; then
+    warn "could not start clickhouse. Start it yourself on port 8123 and re-run, or drop --with-services."
+    exit 1
+  fi
 else
   warn "clickhouse: nothing on port 8123. Start it, or re-run with --with-services:"
-  info 'docker run -d --name factcheck-clickhouse -p 8123:8123 clickhouse/clickhouse-server:25.11.5.8-alpine'
+  info 'docker run -d --name factcheck-clickhouse -p 8123:8123 -e CLICKHOUSE_SKIP_USER_SETUP=1 clickhouse/clickhouse-server:25.11.5.8-alpine'
 fi
 info 'postgres  postgres:18  <- .github/workflows/elixir.yml:127'
 if port_open 5432; then
   info "postgres: something is listening on 5432"
 elif [ "$START_SERVICES" = 1 ]; then
-  step '.github/workflows/elixir.yml:127' 'docker run -d --name factcheck-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:18'
+  if ! step '.github/workflows/elixir.yml:127' 'docker run -d --name factcheck-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:18'; then
+    warn "could not start postgres. Start it yourself on port 5432 and re-run, or drop --with-services."
+    exit 1
+  fi
 else
   warn "postgres: nothing on port 5432. Start it, or re-run with --with-services:"
   info 'docker run -d --name factcheck-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:18'

@@ -83,6 +83,19 @@ else
   warn "Not inside a git repository. Run this from the root of a clone of netbox-community/netbox."
 fi
 
+bold "System packages CI's runner already had"
+info "These are not installed by pip or npm. Install them yourself; this script will not run anything as root."
+warn 'psycopg needs pg_config, from the PostgreSQL client library  <- requirements.txt:33'
+if command -v apt-get >/dev/null 2>&1; then
+  info 'sudo apt-get install -y libpq-dev'
+elif command -v brew >/dev/null 2>&1; then
+  info 'brew install libpq'
+elif command -v pacman >/dev/null 2>&1; then
+  info 'sudo pacman -S --needed postgresql-libs'
+elif command -v dnf >/dev/null 2>&1; then
+  info 'sudo dnf install -y libpq-devel'
+fi
+
 bold "Checking what CI says this needs"
 MISSING=0
 if have node; then
@@ -110,16 +123,22 @@ info 'postgres  postgres  <- .github/workflows/ci.yml:99'
 if port_open 5432; then
   info "postgres: something is listening on 5432"
 elif [ "$START_SERVICES" = 1 ]; then
-  step '.github/workflows/ci.yml:99' 'docker run -d --name factcheck-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres'
+  if ! step '.github/workflows/ci.yml:99' 'docker run -d --name factcheck-postgres -p 5432:5432 -e POSTGRES_USER=netbox -e POSTGRES_PASSWORD=netbox postgres'; then
+    warn "could not start postgres. Start it yourself on port 5432 and re-run, or drop --with-services."
+    exit 1
+  fi
 else
   warn "postgres: nothing on port 5432. Start it, or re-run with --with-services:"
-  info 'docker run -d --name factcheck-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres'
+  info 'docker run -d --name factcheck-postgres -p 5432:5432 -e POSTGRES_USER=netbox -e POSTGRES_PASSWORD=netbox postgres'
 fi
 info 'redis  redis  <- .github/workflows/ci.yml:95'
 if port_open 6379; then
   info "redis: something is listening on 6379"
 elif [ "$START_SERVICES" = 1 ]; then
-  step '.github/workflows/ci.yml:95' 'docker run -d --name factcheck-redis -p 6379:6379 redis'
+  if ! step '.github/workflows/ci.yml:95' 'docker run -d --name factcheck-redis -p 6379:6379 redis'; then
+    warn "could not start redis. Start it yourself on port 6379 and re-run, or drop --with-services."
+    exit 1
+  fi
 else
   warn "redis: nothing on port 6379. Start it, or re-run with --with-services:"
   info 'docker run -d --name factcheck-redis -p 6379:6379 redis'
@@ -135,9 +154,6 @@ step '.github/workflows/ci.yml:122' 'pip install coverage tblib'
 bold "Setup"
 step '.github/workflows/ci.yml:127' 'python netbox/manage.py makemigrations --check'
 step '.github/workflows/ci.yml:132' 'python netbox/manage.py collectstatic --no-input'
-
-bold "Build"
-step '.github/workflows/release.yml:91' 'python -m build'
 
 if [ "$SKIP_TESTS" = 1 ]; then
   bold "Skipping tests (--skip-tests)"

@@ -173,6 +173,28 @@ rote registry play push play/main.ts factcheck
 Only `rote play release <name>` needs a registered name; every other step takes a
 path, which is what makes this layout work.
 
+## Does the script actually work?
+
+Two repos have been taken from `git clone` to a running test suite using nothing
+but the generated `factcheck.sh`:
+
+- **pallets/flask** — `uv sync`, then the full tox matrix, mypy and pyright, all
+  green, exit 0.
+- **netbox-community/netbox** — the harder case: `--with-services` starts the
+  Postgres and Redis containers CI declares, using the credentials CI declares
+  for them (`POSTGRES_USER=netbox`, not a generic default — a generic password
+  starts a database the project cannot authenticate against), then installs,
+  checks migrations and collects static files.
+
+Everything below was found by doing that rather than by reading the code:
+
+| Found by running it | Fix |
+|---|---|
+| `pip install` stopped on a missing `pg_config` | the system-packages table above |
+| `docker run` used a generic password | services carry their declared `env:` |
+| A failed `docker run` aborted with no explanation | names the service and port, suggests what to do |
+| `python -m build` ran from `release.yml` | the script is scoped to the primary workflow; packaging a wheel is not how you run a repo |
+
 ## Validation
 
 A hand-rolled parser fails *silently* — it stops early, raises nothing, and the
@@ -266,6 +288,23 @@ steps, so an `if` wrapped around one in the original workflow is not reproduced.
 `--dry-run` prints every command and runs none of them. `tests/test_script.py`
 generates a script, asks `bash -n` whether it is valid, and executes it under
 `--dry-run` — a generator that emits broken shell should fail its own tests.
+
+## System packages
+
+`pip install` is not the whole story. netbox's `requirements.txt` pulls `psycopg`,
+which builds against libpq; CI never mentions it because the runner image already
+has it. A fresh clone gets partway through the install and stops on a missing
+`pg_config`.
+
+A dependency implying a system package is the same kind of deterministic mapping
+as a lockfile implying its install command, so it gets the same treatment: a fixed
+table, cited to the requirements line that triggered it, with the install command
+for apt, brew, pacman and dnf. The document lists them; the script prints them and
+installs nothing, because this needs root.
+
+The table is deliberately conservative — `psycopg2-binary` and `Pillow` ship
+wheels and are absent. A prerequisite that is not really required wastes the
+reader's time and costs more trust than it earns.
 
 ## Issue mining
 

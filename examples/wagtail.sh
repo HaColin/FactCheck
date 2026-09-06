@@ -122,16 +122,22 @@ info 'elasticsearch  docker.elastic.co/elasticsearch/elasticsearch:8.11.2 | dock
 if port_open 9200; then
   info "elasticsearch: something is listening on 9200"
 elif [ "$START_SERVICES" = 1 ]; then
-  step '.github/workflows/test.yml:278' 'docker run -d --name factcheck-elasticsearch -p 9200:9200 docker.elastic.co/elasticsearch/elasticsearch:8.11.2'
+  if ! step '.github/workflows/test.yml:278' 'docker run -d --name factcheck-elasticsearch -p 9200:9200 -e ES_JAVA_OPTS='\''-Xms512m -Xmx512m'\'' docker.elastic.co/elasticsearch/elasticsearch:8.11.2'; then
+    warn "could not start elasticsearch. Start it yourself on port 9200 and re-run, or drop --with-services."
+    exit 1
+  fi
 else
   warn "elasticsearch: nothing on port 9200. Start it, or re-run with --with-services:"
-  info 'docker run -d --name factcheck-elasticsearch -p 9200:9200 docker.elastic.co/elasticsearch/elasticsearch:8.11.2'
+  info 'docker run -d --name factcheck-elasticsearch -p 9200:9200 -e ES_JAVA_OPTS='\''-Xms512m -Xmx512m'\'' docker.elastic.co/elasticsearch/elasticsearch:8.11.2'
 fi
 info 'postgres  postgres:latest  <- .github/workflows/test.yml:335'
 if port_open 5432; then
   info "postgres: something is listening on 5432"
 elif [ "$START_SERVICES" = 1 ]; then
-  step '.github/workflows/test.yml:335' 'docker run -d --name factcheck-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:latest'
+  if ! step '.github/workflows/test.yml:335' 'docker run -d --name factcheck-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:latest'; then
+    warn "could not start postgres. Start it yourself on port 5432 and re-run, or drop --with-services."
+    exit 1
+  fi
 else
   warn "postgres: nothing on port 5432. Start it, or re-run with --with-services:"
   info 'docker run -d --name factcheck-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:latest'
@@ -158,23 +164,6 @@ step '.github/workflows/test.yml:471' 'uv pip install --system coverage'
 bold "Setup"
 step '.github/workflows/test.yml:180' 'python manage.py makemigrations --check --dry-run'
 step '.github/workflows/test.yml:180' 'python manage.py migrate'
-
-bold "Build"
-step 'package.json:146' 'npm run start'
-step 'package.json:147' 'npm run build'
-step 'package.json:165' 'npm run build-docs'
-step 'package.json:166' 'npm run build-storybook'
-
-if [ "$SKIP_TESTS" = 1 ]; then
-  bold "Skipping tests (--skip-tests)"
-else
-  bold "Test"
-  step 'package.json:159' 'npm run test'
-  step 'package.json:160' 'npm run test:unit'
-  step 'package.json:161' 'npm run test:unit:watch'
-  step 'package.json:162' 'npm run test:unit:coverage'
-  step 'package.json:163' 'npm run test:integration'
-fi
 
 bold "Done"
 info "Every command above came from .github/workflows/test.yml at bddc5eaf2e77."

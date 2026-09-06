@@ -12,6 +12,14 @@ What it takes to run this repo, read from CI rather than from prose.
 
 Nothing in the prose contradicts what CI executes.
 
+## System packages
+
+These are not installed by `pip`. CI's runner image already has them, which is why its workflow never mentions them — and why a fresh clone fails partway through the install with an error about a missing header.
+
+| Because of | It needs | Debian/Ubuntu | macOS | Arch |
+|---|---|---|---|---|
+| [`psycopg`](https://github.com/netbox-community/netbox/blob/eaf30a6fb00ef0424e8bff276eec4c282b31f22c/requirements.txt#L33) at `requirements.txt:33` | pg_config, from the PostgreSQL client library | `libpq-dev` | `libpq` | `postgresql-libs` |
+
 ## Required but undocumented
 
 CI needs these. The prose never mentions them — which is usually why a fresh clone does not run.
