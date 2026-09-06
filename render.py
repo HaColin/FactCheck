@@ -156,9 +156,11 @@ def _system(w, meta, syslibs):
     if not syslibs:
         return
     _h(w, "System packages")
-    w("These are not installed by `pip`. CI's runner image already has them, "
-      "which is why its workflow never mentions them — and why a fresh clone "
-      "fails partway through the install with an error about a missing header.")
+    w("Your language's package manager does not install these — `pip`, `npm` "
+      "and `bundler` all build against them rather than providing them. CI's "
+      "runner image already has them, which is why its workflow never mentions "
+      "them, and why a fresh clone fails partway through the install with an "
+      "error about a missing header.")
     w("")
     w("| Because of | It needs | Debian/Ubuntu | macOS | Arch |")
     w("|---|---|---|---|---|")
