@@ -23,7 +23,7 @@
  *   required: true
  *   description: Public GitHub repository URL, e.g. https://github.com/netbox-community/netbox
  * metadata:
- *   version: 1.3.0
+ *   version: 1.4.0
  *   rote_version: 0.80.0
  *   contract:
  *     atomic: true
