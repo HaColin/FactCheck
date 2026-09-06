@@ -14,6 +14,33 @@ A [Rote](https://modiqo.com) Play. The source-precedence rule is *code*, not a
 prompt, so the method is deterministic, captured, and produces the same answer
 twice.
 
+## Run it
+
+```sh
+rote play run https://play.modiqo.ai/factcheck/factcheck@1.6.1 \
+  repo_url=https://github.com/netbox-community/netbox
+```
+
+With no [rote](https://rote.dev) installed, one line does the whole thing —
+installs rote, signs you in, shows what the play will do, and asks before
+running it:
+
+```sh
+curl -fsSL "https://play.modiqo.ai/install?play=factcheck/factcheck@1.6.1" | sh
+```
+
+It writes `FACTCHECK.md` and `factcheck.sh` into the directory you ran from.
+Needs `python3` and `git`; no pip install, no API key, no GitHub token. Running
+it with no arguments is fine — it shows the play, its access and its inputs,
+then prompts for the repository.
+
+Or skip rote entirely and run the analysis directly:
+
+```sh
+git clone https://github.com/HaColin/FactCheck && cd FactCheck
+python3 factcheck.py https://github.com/netbox-community/netbox
+```
+
 ## Status
 
 | Phase | What | State |
@@ -127,18 +154,18 @@ being coerced to the boolean `True`, which is what a workflow file means by it.
 
 ## The rote Play
 
-Published at **https://play.modiqo.ai/factcheck/factcheck@1.2.0** — public, and
+Published at **https://play.modiqo.ai/factcheck/factcheck@1.6.1** — public, and
 runnable by anyone:
 
 ```sh
-rote play run https://play.modiqo.ai/factcheck/factcheck@1.2.0 \
+rote play run https://play.modiqo.ai/factcheck/factcheck@1.6.1 \
   repo_url=https://github.com/netbox-community/netbox
 ```
 
 Or with no rote installed at all, one line:
 
 ```sh
-curl -fsSL "https://play.modiqo.ai/install?play=factcheck/factcheck@1.2.0" | sh
+curl -fsSL "https://play.modiqo.ai/install?play=factcheck/factcheck@1.6.1" | sh
 ```
 
 | Parameter | Required | Default |
