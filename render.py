@@ -37,7 +37,8 @@ def _mark(tier):
     return "verified" if tier == "verified" else "claimed"
 
 
-def render(meta, inv, wfs, report, gotchas=None, syslibs=None):
+def render(meta, inv, wfs, report, gotchas=None, syslibs=None,
+           unread=None):
     out = []
     w = out.append
 
@@ -85,7 +86,7 @@ def render(meta, inv, wfs, report, gotchas=None, syslibs=None):
     _os(w, meta, report)
     _unverified(w, meta, report)
     _gotchas(w, gotchas)
-    _sources(w, meta, inv, wfs)
+    _sources(w, meta, inv, wfs, unread)
     _method(w)
 
     return "\n".join(out).rstrip() + "\n"
@@ -359,7 +360,7 @@ def _gotchas(w, gotchas):
     w("")
 
 
-def _sources(w, meta, inv, wfs):
+def _sources(w, meta, inv, wfs, unread=None):
     _h(w, "Sources read")
     w("| Category | Files |")
     w("|---|---|")
@@ -373,6 +374,11 @@ def _sources(w, meta, inv, wfs):
             shown += " _+%d more_" % (len(hits) - 6)
         w("| %s | %s |" % (cat, shown or "_none found_"))
     w("")
+    if unread:
+        w("**Not read on this machine:** %s. Reading TOML needs Python 3.11 or "
+          "newer; this run used an older interpreter, so any runtime version "
+          "those files pin is missing from the table above." % _join(unread))
+        w("")
     auth = [wf for wf in wfs if wf.get("authoritative")]
     if auth:
         w("Workflows treated as evidence, in order of authority over what runs "

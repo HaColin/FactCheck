@@ -42,7 +42,9 @@ def main():
     ap.add_argument("--quiet-ci", action="store_true",
                     help="skip the phase B per-job dump")
     ap.add_argument("-o", "--out", nargs="?", const="FACTCHECK.md",
-                    help="write the document (default FACTCHECK.md; - for stdout)")
+                    help="write the document (default FACTCHECK.md; - for "
+                         "stdout). With neither -o nor -s, both files are "
+                         "written into the current directory")
     ap.add_argument("-s", "--script", nargs="?", const="factcheck.sh",
                     help="write the setup script (default factcheck.sh)")
     ap.add_argument("--issues", choices=("yes", "no"), default="no",
@@ -52,6 +54,11 @@ def main():
     ap.add_argument("--json-summary", action="store_true",
                     help="print a machine-readable summary as the last stdout line")
     args = ap.parse_args()
+    # The two files are the product. Asking for the tool and getting only
+    # terminal output surprised me following my own README, so with neither
+    # flag given it writes both, exactly as the Play does.
+    if args.out is None and args.script is None:
+        args.out, args.script = "FACTCHECK.md", "factcheck.sh"
     args.out = resolve_out(args.out)
     args.script = resolve_out(args.script)
     if args.table:
@@ -174,6 +181,10 @@ def main():
     report = phase_c(dest, inv, wfs)
 
     syslibs = sources.system_libs(dest, inv)
+    unread = sources.unread_manifests(dest, inv)
+    if unread:
+        print("\n  %snot read: %s -- needs Python 3.11+ for TOML%s"
+              % (Y, ", ".join(unread), R))
     if syslibs:
         print("\n  %ssystem packages CI's runner already had%s" % (Y, R))
         for lib in syslibs:
@@ -202,7 +213,8 @@ def main():
                 "branch": collect.default_branch(dest),
                 "primary": auth[0] if auth else None}
         if args.out:
-            text = render.render(meta, inv, wfs, report, gotchas, syslibs)
+            text = render.render(meta, inv, wfs, report, gotchas, syslibs,
+                                 unread)
             if args.out == "-":
                 print()
                 print(text)

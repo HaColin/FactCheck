@@ -41,6 +41,9 @@ git clone https://github.com/HaColin/FactCheck && cd FactCheck
 python3 factcheck.py https://github.com/netbox-community/netbox
 ```
 
+That writes `FACTCHECK.md` and `factcheck.sh` into the current directory. Add
+`--issues yes` to also search the issue tracker, or `-o`/`-s` to choose paths.
+
 ## Status
 
 | Phase | What | State |

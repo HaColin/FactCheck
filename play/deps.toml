@@ -8,6 +8,8 @@ schema_version = 1
 id = "python3"
 command = "python3"
 required = true
+# 3.8 runs everything; 3.11 adds tomllib, without which pyproject.toml and
+# Cargo.toml are skipped -- the document says so when that happens.
 version_requirement = ">=3.8.0"
 
 [[tools.install]]

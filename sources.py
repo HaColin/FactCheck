@@ -15,8 +15,21 @@ from claims import Claim
 
 try:
     import tomllib
-except ImportError:                                   # pragma: no cover
+except ImportError:                                   # Python 3.11 added it
     tomllib = None
+
+
+def unread_manifests(root, inv):
+    """TOML manifests this interpreter cannot read.
+
+    tomllib arrived in Python 3.11. Below that, pyproject.toml and Cargo.toml
+    are skipped -- and a claim that silently goes missing is exactly what this
+    tool exists to catch, so the omission is reported rather than hidden.
+    """
+    if tomllib:
+        return []
+    return [p for p in ("pyproject.toml", "Cargo.toml")
+            if collect.read(root, p) is not None]
 
 # asdf/mise plugin names -> the name everyone else uses
 TOOL_ALIASES = {

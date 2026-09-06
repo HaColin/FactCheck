@@ -132,6 +132,18 @@ def test_other_ci_systems_are_named_not_ignored():
     check("still points at the other system", ".circleci/config.yml" in doc, True)
 
 
+def test_unreadable_toml_is_declared():
+    """tomllib is Python 3.11+. Below that, pyproject.toml is skipped -- and a
+    claim that silently goes missing is what this tool exists to catch."""
+    doc = render.render(META, INV, [], build_report(),
+                        unread=["pyproject.toml", "Cargo.toml"])
+    check("names the files", "pyproject.toml" in doc, True)
+    check("says why", "Python 3.11" in doc, True)
+    check("silent when everything was readable",
+          "Not read on this machine" in render.render(META, INV, [], build_report()),
+          False)
+
+
 def test_no_placeholder_leaks():
     # The Method section documents the ${{ }} fallthrough rule on purpose, so
     # only the findings above it are checked.

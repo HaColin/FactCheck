@@ -3,7 +3,7 @@
  * @rote-frontmatter
  * ---
  * name: factcheck
- * description: 'Find out how to actually run a GitHub repo: reconcile what its CI executes against what its README claims. Surfaces the Postgres or Redis services CI needs that the README never mentions, the real runtime versions, the true install and test commands, and every place the documentation contradicts the build. Emits FACTCHECK.md and an executable factcheck.sh, with a file and line behind every claim.'
+ * description: "The same result as an agent flailing through a repo for 200k tokens -- but as a fixed evidence-collection protocol that costs zero inference and produces the same answer twice. Give it a public GitHub repo URL and it reconciles what the CI actually executes against what the README claims, then writes FACTCHECK.md and a runnable factcheck.sh. It surfaces the Postgres or Redis services CI needs that the README never mentions, the system packages pip and npm do not install, the real runtime versions, the true install and test commands, and every line where the documentation contradicts the build. Every claim cites a file and a line, and the same commit always produces the same document."
  * source: https://github.com/HaColin/FactCheck
  * provenance:
  *   author: colinha888@gmail.com
