@@ -147,7 +147,8 @@ def test_no_ci_says_nothing_is_verified():
     claims = [Claim("runtime", "node", "18", "readme", "README.md", 3)]
     report = precedence.reconcile(claims, {}, "needs node 18")
     doc = render.render(meta, INV, [], report)
-    check("says there is no CI", "No CI runs on merge" in doc, True)
+    check("says there is no Actions workflow",
+          "No GitHub Actions workflow runs on merge" in doc, True)
     check("does not claim prose agrees with CI",
           "Nothing in the prose contradicts" in doc, False)
 
