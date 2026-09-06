@@ -14,7 +14,7 @@ Nothing in the prose contradicts what CI executes.
 
 ## System packages
 
-These are not installed by `pip`. CI's runner image already has them, which is why its workflow never mentions them — and why a fresh clone fails partway through the install with an error about a missing header.
+Your language's package manager does not install these — `pip`, `npm` and `bundler` all build against them rather than providing them. CI's runner image already has them, which is why its workflow never mentions them, and why a fresh clone fails partway through the install with an error about a missing header.
 
 | Because of | It needs | Debian/Ubuntu | macOS | Arch |
 |---|---|---|---|---|
