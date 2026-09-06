@@ -1,0 +1,48 @@
+# FACTCHECK needs a Python 3 interpreter and git, nothing else. No pip
+# install, no credentials, no GitHub API calls -- the analysis is a shallow
+# clone plus stdlib parsing.
+
+schema_version = 1
+
+[[tools]]
+id = "python3"
+command = "python3"
+required = true
+version_requirement = ">=3.8.0"
+
+[[tools.install]]
+manager = "apt"
+package = "python3"
+
+[[tools.install]]
+manager = "brew"
+package = "python@3.12"
+
+[[tools.install]]
+manager = "pacman"
+package = "python"
+
+[[tools.install]]
+manager = "dnf"
+package = "python3"
+
+[[tools]]
+id = "git"
+command = "git"
+required = true
+
+[[tools.install]]
+manager = "apt"
+package = "git"
+
+[[tools.install]]
+manager = "brew"
+package = "git"
+
+[[tools.install]]
+manager = "pacman"
+package = "git"
+
+[[tools.install]]
+manager = "dnf"
+package = "git"

@@ -109,6 +109,8 @@ Lockfile → install command is a pure mapping, no inference: `package-lock.json
 | `examples/` | Documents and scripts generated for six real repos |
 | `sweep.py` | Parser validation harness (needs network) |
 | `tests/` | Offline regression tests |
+| `play/` | The rote Play package: `main.ts`, `deps.toml`, presentation fixture |
+| `build-play.sh` | Vendors the modules into `play/resources/` before lint or publish |
 
 ### Why a hand-rolled YAML parser
 
@@ -122,6 +124,54 @@ Two reasons, both load-bearing:
 
 A bonus: this parser is not YAML 1.1, so `on:` stays the string `"on"` instead of
 being coerced to the boolean `True`, which is what a workflow file means by it.
+
+## The rote Play
+
+Published at **https://play.modiqo.ai/factcheck/factcheck@1.2.0** — public, and
+runnable by anyone:
+
+```sh
+rote play run https://play.modiqo.ai/factcheck/factcheck@1.2.0 \
+  repo_url=https://github.com/netbox-community/netbox
+```
+
+Or with no rote installed at all, one line:
+
+```sh
+curl -fsSL "https://play.modiqo.ai/install?play=factcheck/factcheck@1.2.0" | sh
+```
+
+| Parameter | Required | Default |
+|---|---|---|
+| `repo_url` | yes | — |
+| `out_dir` | no | `.` — where you ran from |
+| `mine_issues` | no | `no` |
+
+The package holds the analysis as `resources/*.py` and addresses it with
+`@resource{factcheck.py}`, so the play is self-contained: nothing is fetched at
+run time, and the only host requirements are `python3` and `git`, declared in
+`deps.toml`.
+
+### Publishing a new version
+
+The package lives in `play/` **in this repo**, not under `~/.rote/flows/`. That is
+deliberate. Running the published play installs it to `~/.rote/flows/factcheck/`,
+and when the authoring package sat at that same path the installer's artifacts
+(`factcheck/`, `.factcheck.install.lock`) landed inside it — entries the package
+classifier does not recognise, which failed every subsequent
+`rote play lint` with `FLOW_PACKAGE_CAPTURE_FAILED`. Keeping the source here
+gives the installer sole ownership of that directory, and has the better side
+effect that the Play definition is version-controlled.
+
+```sh
+./build-play.sh                                   # vendor the modules
+rote play lint  play/main.ts
+rote play bump  play/main.ts --minor
+rote registry play push play/main.ts factcheck
+```
+
+Only `rote play release <name>` needs a registered name; every other step takes a
+path, which is what makes this layout work.
 
 ## Validation
 

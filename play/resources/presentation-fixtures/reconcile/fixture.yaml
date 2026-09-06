@@ -1,0 +1,11 @@
+# One representative completed observation of the `reconcile` step: the tail of
+# a real run against netbox-community/netbox, ending in the JSON summary line
+# the presentation body parses.
+schema_version: 1
+kind: process.exec
+status:
+  exit: { kind: code, code: 0 }
+  duration_ms: 70
+  timeout_ms: 300000
+stdout: resources/presentation-fixtures/reconcile/stdout.txt
+stderr: resources/presentation-fixtures/reconcile/stderr.txt

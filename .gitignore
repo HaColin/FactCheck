@@ -1,3 +1,13 @@
 __pycache__/
 *.pyc
 .cache/
+
+# Vendored into the play package by build-play.sh; the root copies are canonical.
+play/resources/*.py
+# Dropped into a play package by `rote play run` when a published play of the
+# same name installs alongside it.
+play/factcheck/
+play/.factcheck.install.lock
+play/.rote-flow-lint.json
+play/.rote-release.lock
+play/deno.json

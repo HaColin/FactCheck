@@ -1,0 +1,12 @@
+
+  Environment  1 variables
+    NETBOX_CONFIGURATION         netbox.configuration_tes  .github/workflows/ci.yml:84
+
+  Verified but undocumented  -- CI needs it, the prose never says so
+    postgres     postgres                       .github/workflows/ci.yml:99
+    redis        redis                          .github/workflows/ci.yml:95
+
+
+  wrote /tmp/fcdemo/FACTCHECK.md  (118 lines, 21 citations)
+  wrote /tmp/fcdemo/factcheck.sh  (137 lines, 7 commands)
+{"artifacts": {"document": "/tmp/fcdemo/FACTCHECK.md", "script": "/tmp/fcdemo/factcheck.sh"}, "branch": "main", "commit": "eaf30a6fb00ef0424e8bff276eec4c282b31f22c", "counts": {"commands": 9, "conflicts": 0, "env_vars": 1, "undocumented": 2}, "gotchas": {"count": 0, "enabled": false, "status": "skipped"}, "has_ci": true, "primary_triggers": ["push", "pull_request"], "primary_workflow": ".github/workflows/ci.yml", "repo": "netbox-community/netbox", "runtime": {"node": "20", "python": "3.12 | 3.13 | 3.14"}, "services": {"postgres": "postgres", "redis": "redis"}, "url": "https://github.com/netbox-community/netbox"}
