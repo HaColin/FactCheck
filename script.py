@@ -81,7 +81,12 @@ def _port_of(service, note):
 
 
 def _docker_run(res):
-    """The CI service block, restated as the docker command that satisfies it."""
+    """The CI service block, restated as the docker command that satisfies it.
+
+    The credentials come from the service's own `env:` where CI declares them.
+    A generic POSTGRES_PASSWORD=postgres would start a database the project
+    then cannot authenticate against -- netbox's CI uses netbox/netbox.
+    """
     image = str(res.value or "").split(" | ")[0]
     if not image or "(implied" in image:
         image = res.key
@@ -89,8 +94,10 @@ def _docker_run(res):
     bits = ["docker run -d", "--name factcheck-%s" % res.key]
     if port:
         bits.append("-p %d:%d" % (port, port))
-    for key, val in _service_env(res.key):
-        bits.append("-e %s=%s" % (key, val))
+    declared = [(k, v) for k, v in (res.winner.data.get("env") or [])
+                if SHELL_IDENT.match(str(k))]
+    for key, val in (declared or _service_env(res.key)):
+        bits.append("-e %s=%s" % (key, _sh(val) if " " in str(val) else val))
     bits.append(image)
     return " ".join(bits)
 

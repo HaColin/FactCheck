@@ -19,10 +19,10 @@ CLAIMED = {
 
 class Claim:
     __slots__ = ("fact", "key", "value", "provider", "path", "line",
-                 "resolved", "note")
+                 "resolved", "note", "data")
 
     def __init__(self, fact, key, value, provider, path, line,
-                 resolved=True, note=""):
+                 resolved=True, note="", data=None):
         if not path or not line:
             raise ValueError("claim without provenance: %r %r" % (fact, value))
         self.fact = fact            # runtime | install | build | test | ...
@@ -37,6 +37,9 @@ class Claim:
         # source instead of printing an expression as an answer.
         self.resolved = resolved
         self.note = note
+        # Structured extras the renderers need without parsing prose: a
+        # service's declared ports and env, for instance.
+        self.data = data or {}
 
     @property
     def tier(self):

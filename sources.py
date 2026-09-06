@@ -216,9 +216,13 @@ def compose(root, inv):
             if not kind:
                 continue
             ports = [str(p) for p in (cfg.get("ports") or [])]
+            cenv = cfg.get("environment")
+            env_pairs = ([(str(k), str(v)) for k, v in cenv.items()]
+                         if isinstance(cenv, dict) else [])
             out.append(Claim("services", kind, image, "docker-compose", path,
                              cfg.kline("image", svcs.kline(name)),
-                             note="ports " + ",".join(ports) if ports else ""))
+                             note="ports " + ",".join(ports) if ports else "",
+                             data={"ports": ports, "env": env_pairs}))
     return out
 
 
@@ -458,7 +462,10 @@ def ci(root, wf, env_ok=True):
             out.append(Claim("services", kind, svc["image"] or svc["name"],
                              "ci-services", path, svc["line"],
                              resolved="${{" not in str(svc["image"]),
-                             note=note))
+                             note=note,
+                             data={"ports": list(svc["ports"]),
+                                   "env": [(k, v) for k, v in svc["env"]
+                                           if "${{" not in str(v)]}))
         for value, line in job["runs_on"]:
             out.append(Claim("os", "os", value, "ci-runs-on", path, line,
                              resolved="${{" not in value,
