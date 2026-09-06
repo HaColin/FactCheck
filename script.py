@@ -323,7 +323,11 @@ def _services(w, report):
         w('if port_open %d; then' % port)
         w('  info "%s: something is listening on %d"' % (res.key, port))
         w('elif [ "$START_SERVICES" = 1 ]; then')
-        w('  step %s %s' % (_sh(res.winner.cite), _sh(_docker_run(res))))
+        w('  if ! step %s %s; then' % (_sh(res.winner.cite), _sh(_docker_run(res))))
+        w('    warn "could not start %s. Start it yourself on port %d and '
+          're-run, or drop --with-services."' % (res.key, port))
+        w("    exit 1")
+        w("  fi")
         w("else")
         w('  warn "%s: nothing on port %d. Start it, or re-run with --with-services:"'
           % (res.key, port))
