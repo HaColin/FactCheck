@@ -103,6 +103,19 @@ def test_relative_output_resolves_against_the_callers_directory():
             os.environ["PWD"] = old
 
 
+def test_unresolvable_runtime_is_still_explained():
+    """rails: CI says `ruby-version: ruby`, and nothing lower pins a version.
+    Omitting the section entirely reads as 'no runtime needed'."""
+    claims = [Claim("runtime", "ruby", "ruby", "ci-setup",
+                    ".github/workflows/ci.yml", 23, resolved=False)]
+    report = precedence.reconcile(claims, {}, "")
+    doc = render.render(META, INV, [], report)
+    check("the section still appears", "## Runtime" in doc, True)
+    check("it says the version is unknown",
+          "No runtime version could be established" in doc, True)
+    check("it cites what CI actually said", "ci.yml:23" in doc, True)
+
+
 def test_no_placeholder_leaks():
     # The Method section documents the ${{ }} fallthrough rule on purpose, so
     # only the findings above it are checked.

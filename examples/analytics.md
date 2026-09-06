@@ -34,6 +34,7 @@ A higher-authority source was present but not literal, so the table fell through
 
 - `elixir`: `${{ steps.versions.outputs.elixir }}` at [`.github/workflows/elixir.yml:63`](https://github.com/plausible/analytics/blob/543b30185c104ce17900d03c95d95429180acc0b/.github/workflows/elixir.yml#L63) could not be read as a version
 - `node`: `${{steps.versions.outputs.nodejs}}` at [`.github/workflows/node.yml:26`](https://github.com/plausible/analytics/blob/543b30185c104ce17900d03c95d95429180acc0b/.github/workflows/node.yml#L26) could not be read as a version
+- `otp`: `${{ steps.versions.outputs.erlang }}` at [`.github/workflows/elixir.yml:64`](https://github.com/plausible/analytics/blob/543b30185c104ce17900d03c95d95429180acc0b/.github/workflows/elixir.yml#L64) could not be read as a version — and nothing lower supplied one
 
 ## Services required
 

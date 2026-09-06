@@ -59,7 +59,11 @@ def main():
     if not args.repo:
         ap.error("a repo URL is required (or --table)")
 
-    owner, name, url = collect.parse_repo_url(args.repo)
+    try:
+        owner, name, url = collect.parse_repo_url(args.repo)
+    except collect.NotAGitHubRepo as exc:
+        sys.stderr.write("%s\n" % exc)
+        return 2
     dest = os.path.join(args.cache_dir, "%s__%s" % (owner, name))
     os.makedirs(args.cache_dir, exist_ok=True)
 

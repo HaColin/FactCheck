@@ -161,24 +161,33 @@ def _fmt(value):
 
 def _runtime(w, meta, report):
     rows = [r for r in report.by_fact("runtime") if r.winner]
-    if not rows:
+    fell = [r for r in report.by_fact("runtime") if r.unresolved]
+    if not rows and not fell:
         return
     _h(w, "Runtime")
-    w("| Tool | Version | Source | |")
-    w("|---|---|---|---|")
-    for res in rows:
-        w("| %s | %s | %s | %s |" % (res.key, _fmt(res.value),
-                                     cite(meta, res.winner), _mark(res.tier)))
-    w("")
-    fell = [r for r in rows if r.unresolved]
+    if rows:
+        w("| Tool | Version | Source | |")
+        w("|---|---|---|---|")
+        for res in rows:
+            w("| %s | %s | %s | %s |" % (res.key, _fmt(res.value),
+                                         cite(meta, res.winner), _mark(res.tier)))
+        w("")
+    else:
+        # Saying nothing here reads as "no runtime needed", which is worse than
+        # saying the version could not be established.
+        w("No runtime version could be established. CI sets one up, but not in "
+          "a form that names a version, and no pin file or manifest supplies "
+          "one either.")
+        w("")
     if fell:
-        w("A higher-authority source was present but not literal, so the table "
-          "fell through to what is shown above:")
+        w("A higher-authority source was present but not literal%s:"
+          % (", so the table fell through to what is shown above" if rows else ""))
         w("")
         for res in fell[:6]:
             u = res.unresolved[0]
-            w("- `%s`: `%s` at %s could not be read as a version"
-              % (res.key, u.value[:60], cite(meta, u)))
+            w("- `%s`: `%s` at %s could not be read as a version%s"
+              % (res.key, _cell(u.value, 60), cite(meta, u),
+                 "" if res.winner else " — and nothing lower supplied one"))
         w("")
 
 

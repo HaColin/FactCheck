@@ -83,6 +83,9 @@ def test_dangerous_commands_are_not_run():
         ("docker push acme/widget", "drop"),
         ("gh release create v1", "drop"),
         ("echo x >> $GITHUB_ENV", "drop"),
+        # django: initdb -D "$GITHUB_WORKSPACE/.tmp/pgdata" is runner-only.
+        ('initdb -D "$GITHUB_WORKSPACE/.tmp/pgdata"', "drop"),
+        ("cp x $RUNNER_TEMP/y", "drop"),
         ("pip install ${{ matrix.pkg }}", "drop"),
         ("sudo apt-get install -y libpq-dev", "manual"),
         ("npm install -g yarn", "manual"),

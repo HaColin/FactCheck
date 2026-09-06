@@ -18,8 +18,9 @@ import re
 
 # Commands that only make sense inside a CI runner.
 CI_ONLY = re.compile(
-    r"\$GITHUB_(ENV|OUTPUT|PATH|STEP_SUMMARY)|\$\{GITHUB_|::set-output"
-    r"|actions/|runner\.temp|hashFiles\(", re.I)
+    # Any GITHUB_* variable: the runner defines them, a laptop does not.
+    r"\$\{?GITHUB_\w+|::set-output|actions/|runner\.temp|hashFiles\("
+    r"|\$\{?RUNNER_\w+", re.I)
 
 # Commands that change the world outside this machine.
 PUBLISHES = re.compile(
@@ -130,6 +131,9 @@ def render_script(meta, report):
     w("# Dropped on purpose: anything not literal in CI, anything that")
     w("# publishes, and anything needing sudo (printed instead, never run).")
     w("#")
+    w("# Run this from the root of a clone of the repository above; the")
+    w("# commands are the ones CI runs there, with its paths.")
+    w("#")
     w("# One limit worth knowing: commands are taken individually from CI")
     w("# steps, so any `if` around them in the original workflow is not")
     w("# reproduced here. Read the cited lines if a step looks conditional.")
@@ -184,6 +188,21 @@ def render_script(meta, report):
     w("port_open() { # port_open <port>")
     w('  (exec 3<>"/dev/tcp/127.0.0.1/$1") >/dev/null 2>&1')
     w("}")
+    w("")
+
+    w('bold "Where you are"')
+    w('if [ -d .git ]; then')
+    w('  origin="$(git config --get remote.origin.url 2>/dev/null || true)"')
+    w('  case "$origin" in')
+    w('    *%s*) info "In a clone of %s." ;;' % (slug, slug))
+    w('    "") warn "This git repo has no origin; check you are in %s." ;;' % slug)
+    w('    *) warn "This looks like $origin, not %s. The commands below assume '
+      'the latter." ;;' % slug)
+    w("  esac")
+    w("else")
+    w('  warn "Not inside a git repository. Run this from the root of a clone '
+      'of %s."' % slug)
+    w("fi")
     w("")
 
     _preflight(w, meta, report)

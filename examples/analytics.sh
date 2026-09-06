@@ -13,6 +13,9 @@
 # Dropped on purpose: anything not literal in CI, anything that
 # publishes, and anything needing sudo (printed instead, never run).
 #
+# Run this from the root of a clone of the repository above; the
+# commands are the ones CI runs there, with its paths.
+#
 # One limit worth knowing: commands are taken individually from CI
 # steps, so any `if` around them in the original workflow is not
 # reproduced here. Read the cited lines if a step looks conditional.
@@ -67,6 +70,18 @@ have() { command -v "$1" >/dev/null 2>&1; }
 port_open() { # port_open <port>
   (exec 3<>"/dev/tcp/127.0.0.1/$1") >/dev/null 2>&1
 }
+
+bold "Where you are"
+if [ -d .git ]; then
+  origin="$(git config --get remote.origin.url 2>/dev/null || true)"
+  case "$origin" in
+    *plausible/analytics*) info "In a clone of plausible/analytics." ;;
+    "") warn "This git repo has no origin; check you are in plausible/analytics." ;;
+    *) warn "This looks like $origin, not plausible/analytics. The commands below assume the latter." ;;
+  esac
+else
+  warn "Not inside a git repository. Run this from the root of a clone of plausible/analytics."
+fi
 
 bold "Checking what CI says this needs"
 MISSING=0

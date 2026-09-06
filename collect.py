@@ -30,20 +30,47 @@ CATEGORIES = [
                    "docs/CONTRIBUTING", "docs/getting-started"]),
 ]
 
-REPO_RE = re.compile(
-    r"(?:https?://(?:www\.)?github\.com/|git@github\.com:)([^/\s]+)/([^/\s]+?)(?:\.git)?/?$")
+# A person pastes what is in their address bar, which usually carries a branch
+# or a tab on the end: .../owner/name/tree/main, /blob/..., /issues, ?q=...#frag.
+# Everything after the repository segment is ignored rather than rejected.
+HTTP_RE = re.compile(
+    r"^(?:https?://)?(?:www\.)?github\.com/(?P<owner>[^/\s?#]+)/(?P<name>[^/\s?#]+)")
+SSH_RE = re.compile(
+    r"^(?:ssh://)?git@github\.com[:/](?P<owner>[^/\s]+)/(?P<name>[^/\s]+?)/?$")
+SHORT_RE = re.compile(r"^(?P<owner>[\w.-]+)/(?P<name>[\w.-]+)$")
+HOST_RE = re.compile(r"^(?:https?://)?(?:www\.)?([^/\s]+)")
+
+
+class NotAGitHubRepo(ValueError):
+    """Raised with a message meant for a person, not a stack trace."""
 
 
 def parse_repo_url(url):
-    """-> (owner, name, clone_url). Accepts owner/name shorthand too."""
-    url = url.strip()
-    m = REPO_RE.match(url)
-    if not m:
-        m = re.match(r"^([\w.-]+)/([\w.-]+)$", url)
+    """-> (owner, name, clone_url). Accepts the shapes people actually paste."""
+    url = (url or "").strip()
+    if not url:
+        raise NotAGitHubRepo("no repository given")
+    for pattern in (HTTP_RE, SSH_RE, SHORT_RE):
+        m = pattern.match(url)
         if not m:
-            raise ValueError("not a GitHub repo URL: %r" % url)
-    owner, name = m.group(1), m.group(2)
-    return owner, name, "https://github.com/%s/%s.git" % (owner, name)
+            continue
+        owner = m.group("owner")
+        name = re.sub(r"\.git$", "", m.group("name"))
+        if owner and name:
+            return owner, name, "https://github.com/%s/%s.git" % (owner, name)
+
+    host = HOST_RE.match(url)
+    if host and "github.com" not in host.group(1) and "." in host.group(1):
+        raise NotAGitHubRepo(
+            "%s is not GitHub. FACTCHECK reads GitHub repositories; GitLab and "
+            "other hosts are not supported." % host.group(1))
+    if "github.com" in url:
+        raise NotAGitHubRepo(
+            "%r names no repository. A GitHub repo URL looks like "
+            "https://github.com/OWNER/NAME" % url)
+    raise NotAGitHubRepo(
+        "%r is not a GitHub repository. Give a URL like "
+        "https://github.com/OWNER/NAME, or the OWNER/NAME shorthand." % url)
 
 
 def clone(clone_url, dest):

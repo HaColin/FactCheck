@@ -31,6 +31,10 @@ CI needs these. The prose never mentions them — which is usually why a fresh c
 | node | `24` | [`.nvmrc:1`](https://github.com/wagtail/wagtail/blob/bddc5eaf2e77d6777b11d0e8cd4a3b62cf707417/.nvmrc#L1) | verified |
 | python | `3.13 \| 3.11 \| 3.14 \| 3.12` | [`.github/workflows/test.yml:70`](https://github.com/wagtail/wagtail/blob/bddc5eaf2e77d6777b11d0e8cd4a3b62cf707417/.github/workflows/test.yml#L70) | verified |
 
+A higher-authority source was present but not literal, so the table fell through to what is shown above:
+
+- `uv`: `(unpinned - action default)` at [`.github/workflows/test.yml:72`](https://github.com/wagtail/wagtail/blob/bddc5eaf2e77d6777b11d0e8cd4a3b62cf707417/.github/workflows/test.yml#L72) could not be read as a version — and nothing lower supplied one
+
 ## Services required
 
 | Service | Image | Where | Source |

@@ -291,8 +291,12 @@ def manifests(root, inv):
             data = tomllib.loads(text)
         except Exception:
             data = {}
+        # `rust-version.workspace = true` parses to a table, not a version; the
+        # real value lives in [workspace.package] of the root manifest.
         rv = data.get("package", {}).get("rust-version")
-        if rv:
+        if not isinstance(rv, str):
+            rv = data.get("workspace", {}).get("package", {}).get("rust-version")
+        if isinstance(rv, str) and rv:
             out.append(Claim("runtime", "rust", _norm_version(rv),
                              "manifest-engines", "Cargo.toml",
                              _find_line(text, "rust-version")))
@@ -428,7 +432,17 @@ def ci(root, wf, env_ok=True):
     path = wf["path"]
     for job in wf["jobs"]:
         for setup in job["setups"]:
-            unresolved = "${{" in setup["value"] or setup["value"].startswith("(")
+            # `python-version-file: pyproject.toml` names a file, not a version.
+            # Recording the filename as the answer would print "want
+            # pyproject.toml"; marking it unreadable lets the precedence table
+            # fall through to the pin file or manifest that holds the real one.
+            # `ruby-version: ruby` and `bun-version: latest` are aliases the
+            # action resolves at run time, not versions. Reporting "ruby = ruby"
+            # tells a reader nothing, so treat an alias as unreadable and let
+            # the table fall through to a pin file or manifest.
+            unresolved = (setup["from_file"] or "${{" in setup["value"]
+                          or setup["value"].startswith("(")
+                          or not re.search(r"\d", str(setup["value"])))
             for val in str(setup["value"]).split(" | "):
                 out.append(Claim("runtime", setup["tool"], _norm_version(val),
                                  "ci-setup", path, setup["line"],
